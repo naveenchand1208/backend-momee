@@ -1,0 +1,21 @@
+const express = require('express')
+const router = express.Router()
+const liveSessionController = require('../controllers/liveSession')
+const upload = require('../helpers/multer');
+
+router.post('/add', upload.single('file'), liveSessionController.add)
+router.post('/list', liveSessionController.list)
+router.post('/view', liveSessionController.view)
+router.post('/update', upload.single('file'), liveSessionController.update)
+router.post('/delete', liveSessionController.delete)
+router.post('/subscribeClass', liveSessionController.subscribeClass)
+router.post('/userPlanlist', liveSessionController.userPlanlist)
+router.post('/createOrder', liveSessionController.createOrder)
+router.post('/cancelCheckoutOrder', liveSessionController.cancelCheckoutOrder)
+router.post('/paymentFailed', liveSessionController.paymentFailed)
+router.post('/verify', liveSessionController.verify)
+router.post('/verifyPaymentStatus', liveSessionController.verifyPaymentStatus)
+router.post('/verifyPaymentAndSubscribe', liveSessionController.verifyPaymentAndSubscribe)
+router.post('/applePaymentFailed', liveSessionController.applePaymentFailed)
+router.post('/applePaymentCancelled', liveSessionController.applePaymentCancelled)
+module.exports = router;    

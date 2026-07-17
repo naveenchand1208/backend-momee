@@ -1,0 +1,22 @@
+const express = require('express')
+const router = express.Router()
+const dietSubscriptionController = require('../controllers/dietSubscription')
+
+router.post('/add', dietSubscriptionController.add)
+router.post('/list', dietSubscriptionController.list)
+router.post('/view', dietSubscriptionController.view)
+router.post('/update', dietSubscriptionController.update)
+router.post('/delete', dietSubscriptionController.delete)
+router.post('/userSubscription', dietSubscriptionController.userSubscription)
+router.post('/userPlanlist', dietSubscriptionController.userPlanlist)
+router.post('/activateUserPlan', dietSubscriptionController.activateUserPlan)
+router.post('/createOrder', dietSubscriptionController.createOrder)
+router.post('/cancelCheckoutOrder', dietSubscriptionController.cancelCheckoutOrder)
+router.post('/paymentFailed', dietSubscriptionController.paymentFailed)
+router.post('/verify', dietSubscriptionController.verify)
+router.post('/verifyPaymentStatus', dietSubscriptionController.verifyPaymentStatus)
+router.post('/verifyPaymentAndSubscribe', dietSubscriptionController.verifyPaymentAndSubscribe)
+router.post('/verifyPaymentAndSubscribesss', dietSubscriptionController.verifyPaymentAndSubscribesss)
+// router.post('/subscriptionDownloadExcel', dietSubscriptionController.subscriptionDownloadExcel)
+
+module.exports = router;    

@@ -1,0 +1,22 @@
+const express = require('express')
+const router = express.Router()
+const subscriptionController = require('../controllers/subscription')
+
+router.post('/add', subscriptionController.add)
+router.post('/list', subscriptionController.list)
+router.post('/view', subscriptionController.view)
+router.post('/update', subscriptionController.update)
+router.post('/delete', subscriptionController.delete)
+router.post('/userSubscription', subscriptionController.userSubscription)
+router.post('/userPlanlist', subscriptionController.userPlanlist)
+router.post('/subscriptionDownloadExcel', subscriptionController.subscriptionDownloadExcel)
+router.post('/userPlanScript', subscriptionController.userPlanScript)
+// router.post('/verifyPayment', subscriptionController.verifyPayment)
+router.post('/createOrder', subscriptionController.createOrder)
+router.post('/verify', subscriptionController.verify)
+router.post('/activatePlan', subscriptionController.activatePlan)
+router.post('/verifyPaymentStatus', subscriptionController.verifyPaymentStatus)
+router.post('/cancelCheckoutOrder', subscriptionController.cancelCheckoutOrder)
+router.post('/paymentFailed', subscriptionController.paymentFailed)
+
+module.exports = router;    

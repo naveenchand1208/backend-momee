@@ -1,0 +1,25 @@
+const express = require('express')
+const router = express.Router()
+const communityController = require('../controllers/community')
+const upload = require('../helpers/multer');
+
+router.post('/add', upload.single('file'), communityController.add)
+router.post('/addLike', communityController.addLike)
+router.post('/addComment', communityController.addComment)
+router.post('/list', communityController.list)
+router.post('/view', communityController.view)
+router.post('/addLikeForComment', communityController.addLikeForComment)
+router.post('/commentList', communityController.commentList)
+router.post('/communitySearchlist', communityController.communitySearchlist)
+router.post('/delete', communityController.delete)
+router.post('/communityLikesCount', communityController.communityLikesCount)
+router.post('/communityCommentsCount', communityController.communityCommentsCount)
+router.post('/approveCommunity', communityController.approveCommunity)
+router.post('/deleteCommunityComment', communityController.deleteCommunityComment)
+router.post('/communityCommentsLikesCount', communityController.communityCommentsLikesCount)
+router.post('/reportCommunity', communityController.reportCommunity)
+router.post('/reportComment', communityController.reportComment)
+router.post('/CommunityReportList', communityController.CommunityReportList)
+router.post('/commentReportList', communityController.commentReportList)
+
+module.exports = router;    
