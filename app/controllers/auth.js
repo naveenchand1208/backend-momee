@@ -541,6 +541,21 @@ exports.getUserList = async (req, res, next) => {
         if (requests.subscribed && requests.subscribed !== '') {
             match['subscribed'] = requests.subscribed;
         }
+        if (requests.fromDate || requests.toDate) {
+            let startDate = moment(requests.fromDate);
+            let endDate = moment(requests.toDate);
+            if (startDate.isValid() && endDate.isValid()) {
+                match.createdAt = {
+                    $gte: startDate.startOf('day').toDate(),
+                    $lte: endDate.endOf('day').toDate()
+                };
+            } else if (startDate.isValid() && !endDate.isValid()) {
+                match.createdAt = {
+                    $gte: startDate.startOf('day').toDate(),
+                    $lte: startDate.endOf('day').toDate()
+                };
+            }
+        }
         if (requests.plan && requests.plan !== '') {
             const plans = await UserPlan.find({ subscriptionId: requests.plan });
             console.log('plans', plans)
@@ -905,6 +920,21 @@ exports.userDownloadExcel = async (req, res) => {
             ...(requests.month && { completedMonths: requests.month }),
             ...(requests.subscribed && { subscribed: requests.subscribed === 'Subscribed' ? true : false })
         };
+        if (requests.fromDate || requests.toDate) {
+            let startDate = moment(requests.fromDate);
+            let endDate = moment(requests.toDate);
+            if (startDate.isValid() && endDate.isValid()) {
+                query.createdAt = {
+                    $gte: startDate.startOf('day').toDate(),
+                    $lte: endDate.endOf('day').toDate()
+                };
+            } else if (startDate.isValid() && !endDate.isValid()) {
+                query.createdAt = {
+                    $gte: startDate.startOf('day').toDate(),
+                    $lte: startDate.endOf('day').toDate()
+                };
+            }
+        }
         if (requests.searchKey !== undefined && requests.searchKey.trim() !== '') {
             const searchTerm = requests.searchKey.trim();
             const regex = { $regex: searchTerm, $options: 'i' };
