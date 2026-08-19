@@ -258,13 +258,122 @@ exports.delete = async (req, res, next) => {
 //         return res.apiResponse(false, 'Dashboard Details error', { error }, 500)
 //     }
 // }
+// exports.dashboardDetails = async (req, res, next) => {
+//     try {
+//         const requests = req.bodyParams;
+
+//         const user = await Auth.findOne({
+//             id: req.userDetails.id
+//         });
+
+//         if (!user) {
+//             return res.apiResponse(
+//                 false,
+//                 "User not found",
+//                 {},
+//                 404
+//             );
+//         }
+
+//         const subscription = await Subscription.find({
+//             userId: req.userDetails.id
+//         });
+
+//         const dietSubscription = await UserDietSubscription.find({
+//             userId: req.userDetails.id,
+//             activePlan: true
+//         });
+
+//         const exerciseSubscription = await UserExercisePlan.find({
+//             userId: req.userDetails.id,
+//             activePlan: true
+//         });
+
+//         //const products = await Product.find({});
+//         const products = await Product.find({
+//             status: "Active"
+//         });
+
+
+//         let journey = null;
+
+//         if (user.momType === 'pregMom') {
+//             if (user.week != null) {
+//                 journey = await Journey.findOne({
+//                     week: user.week
+//                 });
+//             }
+//         } else {
+//             if (user.month != null) {
+//                 journey = await Journey.findOne({
+//                     month: user.month
+//                 });
+//             }
+//         }
+
+//         let journeyId = "";
+//         let height = 0;
+//         let weight = 0;
+
+//         if (journey) {
+//             journeyId = journey.id ?? "";
+//             height = journey.height ?? 0;
+//             weight = journey.weight ?? 0;
+//         }
+
+//         const allReminders = await Reminder.find({});
+
+//         let futureReminders = [];
+
+//         if (allReminders && allReminders.length > 0) {
+//             futureReminders = allReminders.filter(isFutureReminder);
+//         }
+
+//         const banners = await Banner.find({});
+
+//         const response = {
+//             user: user,
+//             subscription: subscription || [],
+//             dietSubscription: dietSubscription || [],
+//             exerciseSubscription: exerciseSubscription || [],
+//             products: products || [],
+//             journeyId: journeyId,
+//             height: height,
+//             weight: weight,
+//             reminders: futureReminders || [],
+//             banners: banners || []
+//         };
+
+//         return res.apiResponse(
+//             true,
+//             "Success",
+//             response,
+//             200
+//         );
+
+//     } catch (error) {
+//         console.error("Dashboard Details error:", error);
+
+//         return res.apiResponse(
+//             false,
+//             "Dashboard Details error",
+//             {
+//                 error: error.message
+//             },
+//             500
+//         );
+//     }
+// };
 exports.dashboardDetails = async (req, res, next) => {
     try {
-        const requests = req.bodyParams;
+        const userId = req.userDetails.id;
 
+        // =========================
+        // USER
+        // =========================
         const user = await Auth.findOne({
-            id: req.userDetails.id
-        });
+            id: userId
+        }).lean();
 
         if (!user) {
             return res.apiResponse(
@@ -275,49 +384,61 @@ exports.dashboardDetails = async (req, res, next) => {
             );
         }
 
+        // =========================
+        // SUBSCRIPTIONS
+        // =========================
         const subscription = await Subscription.find({
-            userId: req.userDetails.id
-        });
+            userId: userId
+        }).lean();
 
         const dietSubscription = await UserDietSubscription.find({
-            userId: req.userDetails.id,
+            userId: userId,
             activePlan: true
-        });
+        }).lean();
 
         const exerciseSubscription = await UserExercisePlan.find({
-            userId: req.userDetails.id,
+            userId: userId,
             activePlan: true
-        });
+        }).lean();
 
-        //const products = await Product.find({});
-        // const products = await Product.find({
-        //     status: "Active"
-        // });
+        // =========================
+        // PRODUCTS
+        // =========================
         let products = [];
+
         try {
             products = await Product.find({
                 status: "Active"
             }).lean();
+
+            if (!Array.isArray(products)) {
+                products = [];
+            }
         } catch (productError) {
-            console.error("PRODUCT QUERY ERROR:", productError);
+            console.error(
+                "Dashboard Product Query Error:",
+                productError
+            );
+
             products = [];
         }
 
-
-
+        // =========================
+        // JOURNEY
+        // =========================
         let journey = null;
 
-        if (user.momType === 'pregMom') {
-            if (user.week != null) {
+        if (user.momType === "pregMom") {
+            if (user.week !== null && user.week !== undefined) {
                 journey = await Journey.findOne({
                     week: user.week
-                });
+                }).lean();
             }
         } else {
-            if (user.month != null) {
+            if (user.month !== null && user.month !== undefined) {
                 journey = await Journey.findOne({
                     month: user.month
-                });
+                }).lean();
             }
         }
 
@@ -331,27 +452,67 @@ exports.dashboardDetails = async (req, res, next) => {
             weight = journey.weight ?? 0;
         }
 
-        const allReminders = await Reminder.find({});
-
+        // =========================
+        // REMINDERS
+        // =========================
         let futureReminders = [];
 
-        if (allReminders && allReminders.length > 0) {
-            futureReminders = allReminders.filter(isFutureReminder);
+        const allReminders = await Reminder.find({
+            userId: userId
+        }).lean();
+
+        if (Array.isArray(allReminders)) {
+            futureReminders = allReminders.filter(
+                isFutureReminder
+            );
         }
 
-        const banners = await Banner.find({});
+        // =========================
+        // BANNERS
+        // =========================
+        let banners = [];
 
+        const bannerData = await Banner.find({
+            status: "Active"
+        }).lean();
+
+        if (Array.isArray(bannerData)) {
+            banners = bannerData;
+        }
+
+        // =========================
+        // FINAL RESPONSE
+        // =========================
         const response = {
             user: user,
-            subscription: subscription || [],
-            dietSubscription: dietSubscription || [],
-            exerciseSubscription: exerciseSubscription || [],
-            products: products || [],
-            journeyId: journeyId,
-            height: height,
-            weight: weight,
-            reminders: futureReminders || [],
-            banners: banners || []
+
+            subscription: Array.isArray(subscription)
+                ? subscription
+                : [],
+
+            dietSubscription: Array.isArray(dietSubscription)
+                ? dietSubscription
+                : [],
+
+            exerciseSubscription: Array.isArray(exerciseSubscription)
+                ? exerciseSubscription
+                : [],
+
+            products: Array.isArray(products)
+                ? products
+                : [],
+
+            journeyId: journeyId || "",
+            height: height ?? 0,
+            weight: weight ?? 0,
+
+            reminders: Array.isArray(futureReminders)
+                ? futureReminders
+                : [],
+
+            banners: Array.isArray(banners)
+                ? banners
+                : []
         };
 
         return res.apiResponse(
@@ -362,18 +523,22 @@ exports.dashboardDetails = async (req, res, next) => {
         );
 
     } catch (error) {
-        console.error("Dashboard Details error:", error);
+        console.error(
+            "Dashboard Details error:",
+            error
+        );
 
         return res.apiResponse(
             false,
             "Dashboard Details error",
             {
-                error: error.message
+                error: error.message || "Something went wrong"
             },
             500
         );
     }
 };
+
 
 function getReminderDateTimeMinus15Mins(date, time) {
     const originalDateTime = moment(`${date} ${time}`, 'DD-MM-YYYY hh:mm A');
