@@ -289,11 +289,24 @@ exports.dashboardDetails = async (req, res, next) => {
             activePlan: true
         });
 
-        // const products = await Product.find({});
-        const products = await Product.find({
-            status: "Active"
-        });
+        //const products = await Product.find({});
+        // const products = await Product.find({
+        //     status: "Active"
+        // }); 
         
+        const products = await Product.find({});
+
+const formattedProducts = products.map((product) => ({
+    id: product.id ?? "",
+    name: product.name ?? "",
+    files: Array.isArray(product.files) ? product.files : [],
+    description: product.description ?? "",
+    actualPrice: product.actualPrice ?? "",
+    price: product.price ?? "",
+    discountPercentage: product.discountPercentage ?? "",
+    momType: product.momType ?? "",
+    status: product.status ?? "Active",
+}));
 
 
 
@@ -333,15 +346,27 @@ exports.dashboardDetails = async (req, res, next) => {
 
         const banners = await Banner.find({});
 
+        // const response = {
+        //     user: user,
+        //     subscription: subscription || [],
+        //     dietSubscription: dietSubscription || [],
+        //     exerciseSubscription: exerciseSubscription || [],
+        //     products: products || [],
+        //     journeyId: journeyId,
+        //     height: height,
+        //     weight: weight,
+        //     reminders: futureReminders || [],
+        //     banners: banners || []
+        // };
         const response = {
             user: user,
             subscription: subscription || [],
             dietSubscription: dietSubscription || [],
             exerciseSubscription: exerciseSubscription || [],
-            products: products || [],
-            journeyId: journeyId,
-            height: height,
-            weight: weight,
+            products: formattedProducts,
+            journeyId: journeyId || "",
+            height: height ?? 0,
+            weight: weight ?? 0,
             reminders: futureReminders || [],
             banners: banners || []
         };
