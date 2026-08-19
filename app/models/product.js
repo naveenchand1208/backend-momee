@@ -49,9 +49,14 @@ const productSchema = new mongoose.Schema({
     actualPrice: String,
     price: String,
     discountPercentage: String,
-    momType: String,
+    momType: {
+        type: String,
+        enum: ['newMom', 'pregMom'],
+        required: true,
+    },
     status: {
         type: String,
+        enum: ['Active', 'Inactive'],
         default: "Active",
     }
 }, {

@@ -401,9 +401,8 @@ exports.userPlanScript = async (req, res) => {
 };
 
 exports.userPlanlist = async (req, res, next) => {
-    console.log('bocdd')
-    try {        
-        const requests = req.bodyParams;        
+    try {
+        const requests = req.bodyParams;
         const page = parseInt(requests.page, 10) || 1;
         const per_page = parseInt(requests.limit, 10) || 10;
         const pagination = requests.pagination || "true";
@@ -492,7 +491,6 @@ exports.userPlanlist = async (req, res, next) => {
         }
 
     } catch (error) {
-        console.log('erttt',error)
         return res.apiResponse(false, 'Get list error', {}, 500);
     }
 }

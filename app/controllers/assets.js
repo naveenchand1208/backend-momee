@@ -4,6 +4,7 @@ const { uploadToCloudinary, deleteFromCloudinary } = require('../helpers/cloudin
 
 exports.add = async (req, res, next) => {
     try {
+        console.log('req.body', req.body)
         const { name } = req.body;
         if (!name || !req.file) {
             return res.apiResponse(false, 'Asset params is missing', {}, 400);
@@ -138,6 +139,7 @@ exports.update = async (req, res, next) => {
         console.error('Update Error:', error);
         return res.apiResponse(false, 'Error updating Asset', {}, 500);
     }
+
 };
 
 exports.delete = async (req, res, next) => {

@@ -3,7 +3,6 @@ const mongoosePaginate = require('mongoose-paginate-v2')
 
 const foodEatSchema = new mongoose.Schema({
     id: String,
-    userId: String,
     title: String,
     file: String,
     public_id: String,
