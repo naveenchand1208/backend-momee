@@ -312,14 +312,27 @@ exports.update = async (req, res, next) => {
                 return res.apiResponse(false, 'Product Not Found', {}, 404);
             }
 
+            const validMomTypes = ['newMom', 'pregMom'];
+            const validStatuses = ['Active', 'Inactive'];
+
             let updateFields = {};
             if (req.body.name) updateFields.name = req.body.name;
-            if (req.body.momType) updateFields.momType = req.body.momType;
+            if (req.body.momType) {
+                if (!validMomTypes.includes(req.body.momType)) {
+                    return res.apiResponse(false, `Invalid momType. Must be one of: ${validMomTypes.join(', ')}`, {}, 400);
+                }
+                updateFields.momType = req.body.momType;
+            }
             // if (req.body.price) updateFields.price = req.body.price;
             // if (req.body.actualPrice) updateFields.actualPrice = req.body.actualPrice;
             // if (req.body.discountPercentage) updateFields.discountPercentage = req.body.discountPercentage;
             if (req.body.description) updateFields.description = req.body.description;
-            if (req.body.status) updateFields.status = req.body.status;
+            if (req.body.status) {
+                if (!validStatuses.includes(req.body.status)) {
+                    return res.apiResponse(false, `Invalid status. Must be one of: ${validStatuses.join(', ')}`, {}, 400);
+                }
+                updateFields.status = req.body.status;
+            }
 
             const finalActualPrice = actualPrice !== undefined ? actualPrice : product.actualPrice;
             console.log('finalActualPrice', finalActualPrice)
@@ -382,7 +395,7 @@ exports.update = async (req, res, next) => {
             const updatedProduct = await Product.findOneAndUpdate(
                 { id },
                 { $set: updateFields },
-                { new: true }
+                { new: true, runValidators: true }
             );
             if (!updatedProduct) {
                 return res.apiResponse(false, 'Product not found', {}, 404);
@@ -393,6 +406,9 @@ exports.update = async (req, res, next) => {
         }
     } catch (error) {
         console.error('Update Error:', error);
+        if (error.name === 'ValidationError') {
+            return res.apiResponse(false, error.message, {}, 400);
+        }
         return res.apiResponse(false, 'Error updating Product', {}, 500);
     }
 

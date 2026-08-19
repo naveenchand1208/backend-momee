@@ -218,10 +218,18 @@ exports.dashboardDetails = async (req, res, next) => {
         const subscription = await Subscription.find({ userId: req.userDetails.id })
         const dietSubscription = await UserDietSubscription.find({ userId: req.userDetails.id, activePlan: true })
         const exerciseSubscription = await UserExercisePlan.find({ userId: req.userDetails.id, activePlan: true })
-        const products = await Product.find({
-            momType: { $in: ['newMom', 'pregMom'] },
+        // Filtered at the query level, then re-checked defensively so a legacy or
+        // malformed record (e.g. bad status/momType written before validation was
+        // enforced) can never reach the app and break client-side parsing.
+        const validMomTypes = ['newMom', 'pregMom'];
+        const validStatuses = ['Active', 'Inactive'];
+        const rawProducts = await Product.find({
+            momType: { $in: validMomTypes },
             status: 'Active',
         })
+        const products = rawProducts.filter(
+            (p) => validStatuses.includes(p.status) && validMomTypes.includes(p.momType)
+        )
         let journey = {};
         if (user.momType === 'pregMom') {
             journey = await Journey.findOne({ week: user.week })
