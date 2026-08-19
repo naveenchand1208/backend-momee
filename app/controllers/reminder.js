@@ -258,13 +258,116 @@ exports.delete = async (req, res, next) => {
 //         return res.apiResponse(false, 'Dashboard Details error', { error }, 500)
 //     }
 // }
+// exports.dashboardDetails = async (req, res, next) => {
+//     try {
+//         const requests = req.bodyParams;
+
+//         const user = await Auth.findOne({
+//             id: req.userDetails.id
+//         });
+
+//         if (!user) {
+//             return res.apiResponse(
+//                 false,
+//                 "User not found",
+//                 {},
+//                 404
+//             );
+//         }
+
+//         const subscription = await Subscription.find({
+//             userId: req.userDetails.id
+//         });
+
+//         const dietSubscription = await UserDietSubscription.find({
+//             userId: req.userDetails.id,
+//             activePlan: true
+//         });
+
+//         const exerciseSubscription = await UserExercisePlan.find({
+//             userId: req.userDetails.id,
+//             activePlan: true
+//         });
+
+//         const products = await Product.find({});
+
+//         let journey = null;
+
+//         if (user.momType === 'pregMom') {
+//             if (user.week != null) {
+//                 journey = await Journey.findOne({
+//                     week: user.week
+//                 });
+//             }
+//         } else {
+//             if (user.month != null) {
+//                 journey = await Journey.findOne({
+//                     month: user.month
+//                 });
+//             }
+//         }
+
+//         let journeyId = "";
+//         let height = 0;
+//         let weight = 0;
+
+//         if (journey) {
+//             journeyId = journey.id ?? "";
+//             height = journey.height ?? 0;
+//             weight = journey.weight ?? 0;
+//         }
+
+//         const allReminders = await Reminder.find({});
+
+//         let futureReminders = [];
+
+//         if (allReminders && allReminders.length > 0) {
+//             futureReminders = allReminders.filter(isFutureReminder);
+//         }
+
+//         const banners = await Banner.find({});
+
+//         const response = {
+//             user: user,
+//             subscription: subscription || [],
+//             dietSubscription: dietSubscription || [],
+//             exerciseSubscription: exerciseSubscription || [],
+//             products: products || [],
+//             journeyId: journeyId,
+//             height: height,
+//             weight: weight,
+//             reminders: futureReminders || [],
+//             banners: banners || []
+//         };
+
+//         return res.apiResponse(
+//             true,
+//             "Success",
+//             response,
+//             200
+//         );
+
+//     } catch (error) {
+//         console.error("Dashboard Details error:", error);
+
+//         return res.apiResponse(
+//             false,
+//             "Dashboard Details error",
+//             {
+//                 error: error.message
+//             },
+//             500
+//         );
+//     }
+// };
+
 exports.dashboardDetails = async (req, res, next) => {
     try {
-        const requests = req.bodyParams;
+        const userId = req.userDetails.id;
 
         const user = await Auth.findOne({
-            id: req.userDetails.id
-        });
+            id: userId
+        }).lean();
 
         if (!user) {
             return res.apiResponse(
@@ -276,53 +379,64 @@ exports.dashboardDetails = async (req, res, next) => {
         }
 
         const subscription = await Subscription.find({
-            userId: req.userDetails.id
-        });
+            userId: userId
+        }).lean();
 
         const dietSubscription = await UserDietSubscription.find({
-            userId: req.userDetails.id,
+            userId: userId,
             activePlan: true
-        });
+        }).lean();
 
         const exerciseSubscription = await UserExercisePlan.find({
-            userId: req.userDetails.id,
+            userId: userId,
             activePlan: true
-        });
+        }).lean();
 
-        //const products = await Product.find({});
-        // const products = await Product.find({
-        //     status: "Active"
-        // }); 
-        
-        const products = await Product.find({});
+        const products = await Product.find({}).lean();
 
-const formattedProducts = products.map((product) => ({
-    id: product.id ?? "",
-    name: product.name ?? "",
-    files: Array.isArray(product.files) ? product.files : [],
-    description: product.description ?? "",
-    actualPrice: product.actualPrice ?? "",
-    price: product.price ?? "",
-    discountPercentage: product.discountPercentage ?? "",
-    momType: product.momType ?? "",
-    status: product.status ?? "Active",
-}));
+        // --------------------------------
+        // NORMALIZE PRODUCTS
+        // --------------------------------
 
+        const formattedProducts = products.map(product => ({
+            id: product.id ?? "",
+            name: product.name ?? "",
+            files: Array.isArray(product.files)
+                ? product.files
+                : [],
+            description: product.description ?? "",
+            actualPrice: product.actualPrice ?? "",
+            price: product.price ?? "",
+            discountPercentage: product.discountPercentage ?? "",
+            momType: product.momType ?? "",
+            status: product.status ?? "Active",
 
+            // Keep these if your Flutter ProductModel expects them
+            _id: product._id ?? "",
+            createdAt: product.createdAt ?? "",
+            updatedAt: product.updatedAt ?? ""
+        }));
+
+        // --------------------------------
+        // JOURNEY
+        // --------------------------------
 
         let journey = null;
 
-        if (user.momType === 'pregMom') {
-            if (user.week != null) {
+        if (user.momType === "pregMom") {
+
+            if (user.week !== null && user.week !== undefined) {
                 journey = await Journey.findOne({
                     week: user.week
-                });
+                }).lean();
             }
+
         } else {
-            if (user.month != null) {
+
+            if (user.month !== null && user.month !== undefined) {
                 journey = await Journey.findOne({
                     month: user.month
-                });
+                }).lean();
             }
         }
 
@@ -336,39 +450,96 @@ const formattedProducts = products.map((product) => ({
             weight = journey.weight ?? 0;
         }
 
-        const allReminders = await Reminder.find({});
+        // --------------------------------
+        // REMINDERS
+        // --------------------------------
+
+        const allReminders = await Reminder.find({}).lean();
 
         let futureReminders = [];
 
-        if (allReminders && allReminders.length > 0) {
-            futureReminders = allReminders.filter(isFutureReminder);
+        if (Array.isArray(allReminders)) {
+            futureReminders = allReminders
+                .filter(isFutureReminder)
+                .map(reminder => ({
+                    ...reminder,
+
+                    _id: reminder._id ?? "",
+                    id: reminder.id ?? "",
+                    title: reminder.title ?? "",
+                    description: reminder.description ?? ""
+                }));
         }
 
-        const banners = await Banner.find({});
+        // --------------------------------
+        // BANNERS
+        // --------------------------------
 
-        // const response = {
-        //     user: user,
-        //     subscription: subscription || [],
-        //     dietSubscription: dietSubscription || [],
-        //     exerciseSubscription: exerciseSubscription || [],
-        //     products: products || [],
-        //     journeyId: journeyId,
-        //     height: height,
-        //     weight: weight,
-        //     reminders: futureReminders || [],
-        //     banners: banners || []
-        // };
+        const banners = await Banner.find({}).lean();
+
+        const formattedBanners = banners.map(banner => ({
+            ...banner,
+
+            _id: banner._id ?? "",
+            id: banner.id ?? "",
+            title: banner.title ?? "",
+            image: banner.image ?? "",
+            description: banner.description ?? ""
+        }));
+
+        // --------------------------------
+        // NORMALIZE USER
+        // --------------------------------
+
+        const userData = {
+            ...user,
+
+            _id: user._id ?? "",
+            id: user.id ?? "",
+
+            name: user.name ?? "",
+            email: user.email ?? "",
+            phone: user.phone ?? "",
+            mobile: user.mobile ?? "",
+
+            momType: user.momType ?? "",
+            week: user.week ?? 0,
+            month: user.month ?? 0,
+
+            image: user.image ?? "",
+            profileImage: user.profileImage ?? "",
+
+            status: user.status ?? "",
+        };
+
+        // --------------------------------
+        // FINAL RESPONSE
+        // --------------------------------
+
         const response = {
-            user: user,
-            subscription: subscription || [],
-            dietSubscription: dietSubscription || [],
-            exerciseSubscription: exerciseSubscription || [],
+            user: userData,
+
+            subscription: Array.isArray(subscription)
+                ? subscription
+                : [],
+
+            dietSubscription: Array.isArray(dietSubscription)
+                ? dietSubscription
+                : [],
+
+            exerciseSubscription: Array.isArray(exerciseSubscription)
+                ? exerciseSubscription
+                : [],
+
             products: formattedProducts,
-            journeyId: journeyId || "",
-            height: height ?? 0,
-            weight: weight ?? 0,
-            reminders: futureReminders || [],
-            banners: banners || []
+
+            journeyId: journeyId,
+            height: height,
+            weight: weight,
+
+            reminders: futureReminders,
+
+            banners: formattedBanners
         };
 
         return res.apiResponse(
@@ -379,6 +550,7 @@ const formattedProducts = products.map((product) => ({
         );
 
     } catch (error) {
+
         console.error("Dashboard Details error:", error);
 
         return res.apiResponse(
