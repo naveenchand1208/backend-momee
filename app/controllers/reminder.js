@@ -294,25 +294,31 @@ exports.dashboardDetails = async (req, res, next) => {
         // --------------------------------
         // NORMALIZE PRODUCTS
         // --------------------------------
+        // The mobile app can only deserialize status === "Active" (it has
+        // no mapping for "Inactive" or any other value and hard-crashes on
+        // the whole dashboard payload if it sees one). Drop anything that
+        // isn't Active/unset, and force the field to a known-safe value.
 
-        const formattedProducts = products.map(product => ({
-            id: product.id ?? "",
-            name: product.name ?? "",
-            files: Array.isArray(product.files)
-                ? product.files
-                : [],
-            description: product.description ?? "",
-            actualPrice: product.actualPrice ?? "",
-            price: product.price ?? "",
-            discountPercentage: product.discountPercentage ?? "",
-            momType: product.momType ?? "",
-            status: product.status ?? "Active",
+        const formattedProducts = products
+            .filter(product => !product.status || product.status === "Active")
+            .map(product => ({
+                id: product.id ?? "",
+                name: product.name ?? "",
+                files: Array.isArray(product.files)
+                    ? product.files
+                    : [],
+                description: product.description ?? "",
+                actualPrice: product.actualPrice ?? "",
+                price: product.price ?? "",
+                discountPercentage: product.discountPercentage ?? "",
+                momType: product.momType ?? "",
+                status: "Active",
 
-            // Keep these if your Flutter ProductModel expects them
-            _id: product._id ?? "",
-            createdAt: product.createdAt ?? "",
-            updatedAt: product.updatedAt ?? ""
-        }));
+                // Keep these if your Flutter ProductModel expects them
+                _id: product._id ?? "",
+                createdAt: product.createdAt ?? "",
+                updatedAt: product.updatedAt ?? ""
+            }));
 
         // --------------------------------
         // JOURNEY
@@ -374,15 +380,19 @@ exports.dashboardDetails = async (req, res, next) => {
 
         const banners = await Banner.find({}).lean();
 
-        const formattedBanners = banners.map(banner => ({
-            ...banner,
+        // Same reasoning as products: only ever send status === "Active".
+        const formattedBanners = banners
+            .filter(banner => !banner.status || banner.status === "Active")
+            .map(banner => ({
+                ...banner,
 
-            _id: banner._id ?? "",
-            id: banner.id ?? "",
-            title: banner.title ?? "",
-            image: banner.image ?? "",
-            description: banner.description ?? ""
-        }));
+                _id: banner._id ?? "",
+                id: banner.id ?? "",
+                title: banner.title ?? "",
+                image: banner.image ?? "",
+                description: banner.description ?? "",
+                status: "Active"
+            }));
 
         // --------------------------------
         // NORMALIZE USER
@@ -406,7 +416,11 @@ exports.dashboardDetails = async (req, res, next) => {
             image: user.image ?? "",
             profileImage: user.profileImage ?? "",
 
-            status: user.status ?? "",
+            // The app only knows how to deserialize status === "Active" and
+            // hard-crashes on any other value (including ""). This field
+            // isn't used to gate app access anywhere today (that's done via
+            // `activeUser`), so it's safe to always report "Active" here.
+            status: "Active",
         };
 
         // --------------------------------
