@@ -290,10 +290,10 @@ exports.dashboardDetails = async (req, res, next) => {
         });
 
         // const products = await Product.find({});
-        // const products = await Product.find({
-        //     status: "Active"
-        // });
-        const products = [];
+        const products = await Product.find({
+            status: "Active"
+        });
+        
 
 
 
