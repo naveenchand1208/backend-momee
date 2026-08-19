@@ -290,9 +290,19 @@ exports.dashboardDetails = async (req, res, next) => {
         });
 
         //const products = await Product.find({});
-        const products = await Product.find({
-            status: "Active"
-        });
+        // const products = await Product.find({
+        //     status: "Active"
+        // });
+        let products = [];
+        try {
+            products = await Product.find({
+                status: "Active"
+            }).lean();
+        } catch (productError) {
+            console.error("PRODUCT QUERY ERROR:", productError);
+            products = [];
+        }
+
 
 
         let journey = null;
