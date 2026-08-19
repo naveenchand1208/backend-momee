@@ -289,7 +289,7 @@ exports.dashboardDetails = async (req, res, next) => {
             activePlan: true
         });
 
-        //const products = await Product.find({});
+         const products = await Product.find({});
         // const products = await Product.find({
         //     status: "Active"
         // });
