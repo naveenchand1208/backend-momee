@@ -51,7 +51,7 @@ exports.list = async (req, res, next) => {
         const match = {};
         const sortField = requests.sortField || 'createdAt';
         const sortOrder = requests.sortOrder === 'asc' ? 1 : -1;
-
+        
         if (requests.id && requests.id !== '') {
             match['id'] = requests.id;
         }
@@ -120,11 +120,11 @@ exports.list = async (req, res, next) => {
             if (Object.keys(match).length === 0) {
                 Foods = await FoodEat.find({}).populate('category');
             } else {
+                console.log("MATCH =", JSON.stringify(match, null, 2));
                 Foods = await FoodEat.find(match).populate('category');
             }
             return res.apiResponse(true, "Success", { docs: Foods }, 200);
         }
-
     } catch (error) {
         return res.apiResponse(false, 'Get list error', {}, 500);
     }
@@ -190,7 +190,6 @@ exports.update = async (req, res, next) => {
         console.error('Update Error:', error);
         return res.apiResponse(false, 'Error updating Food', {}, 500);
     }
-
 };
 
 exports.delete = async (req, res, next) => {

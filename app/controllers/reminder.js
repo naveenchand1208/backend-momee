@@ -211,53 +211,155 @@ exports.delete = async (req, res, next) => {
     }
 }
 
+// exports.dashboardDetails = async (req, res, next) => {
+//     try {
+//         var requests = req.bodyParams;
+//         const user = await Auth.findOne({ id: req.userDetails.id })
+//         const subscription = await Subscription.find({ userId: req.userDetails.id })
+//         const dietSubscription = await UserDietSubscription.find({ userId: req.userDetails.id, activePlan: true })
+//         const exerciseSubscription = await UserExercisePlan.find({ userId: req.userDetails.id, activePlan: true })
+//         const products = await Product.find({})
+//         let journey = {};
+//         if (user.momType === 'pregMom') {
+//             journey = await Journey.findOne({ week: user.week })
+//         } else {
+//             journey = await Journey.findOne({ month: user.month })
+//         }
+
+//         let journeyId = "";
+//         let height = 0;
+//         let weight = 0;
+//         if (journey) {
+//             journeyId = journey.id || "";
+//             height = journey.height || 0;
+//             weight = journey.weight || 0;
+//         }
+//         const allReminders = await Reminder.find({});
+//         let futureReminders = [];
+//         if (allReminders.length > 0) {
+//             futureReminders = allReminders?.filter(isFutureReminder) || [];
+//         }
+//         let banners = [];
+//         banners = await Banner.find({});
+//         const response = {
+//             user,
+//             subscription,
+//             dietSubscription,
+//             exerciseSubscription,
+//             products,
+//             journeyId,
+//             height,
+//             weight,
+//             reminders: futureReminders,
+//             banners,
+//         }
+//         return res.apiResponse(true, "Success", response, 200);
+//     } catch (error) {
+//         return res.apiResponse(false, 'Dashboard Details error', { error }, 500)
+//     }
+// }
 exports.dashboardDetails = async (req, res, next) => {
     try {
-        var requests = req.bodyParams;
-        const user = await Auth.findOne({ id: req.userDetails.id })
-        const subscription = await Subscription.find({ userId: req.userDetails.id })
-        const dietSubscription = await UserDietSubscription.find({ userId: req.userDetails.id, activePlan: true })
-        const exerciseSubscription = await UserExercisePlan.find({ userId: req.userDetails.id, activePlan: true })
-        const products = await Product.find({})
-        let journey = {};
+        const requests = req.bodyParams;
+
+        const user = await Auth.findOne({
+            id: req.userDetails.id
+        });
+
+        if (!user) {
+            return res.apiResponse(
+                false,
+                "User not found",
+                {},
+                404
+            );
+        }
+
+        const subscription = await Subscription.find({
+            userId: req.userDetails.id
+        });
+
+        const dietSubscription = await UserDietSubscription.find({
+            userId: req.userDetails.id,
+            activePlan: true
+        });
+
+        const exerciseSubscription = await UserExercisePlan.find({
+            userId: req.userDetails.id,
+            activePlan: true
+        });
+
+        const products = await Product.find({});
+
+        let journey = null;
+
         if (user.momType === 'pregMom') {
-            journey = await Journey.findOne({ week: user.week })
+            if (user.week != null) {
+                journey = await Journey.findOne({
+                    week: user.week
+                });
+            }
         } else {
-            journey = await Journey.findOne({ month: user.month })
+            if (user.month != null) {
+                journey = await Journey.findOne({
+                    month: user.month
+                });
+            }
         }
 
         let journeyId = "";
         let height = 0;
         let weight = 0;
+
         if (journey) {
-            journeyId = journey.id || "";
-            height = journey.height || 0;
-            weight = journey.weight || 0;
+            journeyId = journey.id ?? "";
+            height = journey.height ?? 0;
+            weight = journey.weight ?? 0;
         }
+
         const allReminders = await Reminder.find({});
+
         let futureReminders = [];
-        if (allReminders.length > 0) {
-            futureReminders = allReminders?.filter(isFutureReminder) || [];
+
+        if (allReminders && allReminders.length > 0) {
+            futureReminders = allReminders.filter(isFutureReminder);
         }
-        let banners = [];
-        banners = await Banner.find({});
+
+        const banners = await Banner.find({});
+
         const response = {
-            user,
-            subscription,
-            dietSubscription,
-            exerciseSubscription,
-            products,
-            journeyId,
-            height,
-            weight,
-            reminders: futureReminders,
-            banners,
-        }
-        return res.apiResponse(true, "Success", response, 200);
+            user: user,
+            subscription: subscription || [],
+            dietSubscription: dietSubscription || [],
+            exerciseSubscription: exerciseSubscription || [],
+            products: products || [],
+            journeyId: journeyId,
+            height: height,
+            weight: weight,
+            reminders: futureReminders || [],
+            banners: banners || []
+        };
+
+        return res.apiResponse(
+            true,
+            "Success",
+            response,
+            200
+        );
+
     } catch (error) {
-        return res.apiResponse(false, 'Dashboard Details error', { error }, 500)
+        console.error("Dashboard Details error:", error);
+
+        return res.apiResponse(
+            false,
+            "Dashboard Details error",
+            {
+                error: error.message
+            },
+            500
+        );
     }
-}
+};
 
 function getReminderDateTimeMinus15Mins(date, time) {
     const originalDateTime = moment(`${date} ${time}`, 'DD-MM-YYYY hh:mm A');
