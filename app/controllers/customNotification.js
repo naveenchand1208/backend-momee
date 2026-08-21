@@ -4,6 +4,7 @@ const Auth = require('../models/auth')
 const moment = require('moment');
 const NotificationLogs = require('../models/notificationLogs');
 const { uploadToCloudinary } = require('../helpers/cloudinary');
+const notifyUsers = require('../helpers/notifyUsers');
 
 exports.add = async (req, res, next) => {
     try {
@@ -99,6 +100,15 @@ exports.add = async (req, res, next) => {
             public_id: fileUpload.public_id,
         })
         await newClickCount.save();
+
+        // Persist one per-user notification row so it shows up in the
+        // app's Notifications screen (/api/notification/list), independent
+        // of whether the FCM push above actually reached the device.
+        try {
+            await notifyUsers(userIds, { title, message, type: 'custom_notification' });
+        } catch (err) {
+            console.error("Failed to persist per-user notifications:", err);
+        }
 
         return res.apiResponse(true, "Notifications processed", {
             notification: newNotification,
