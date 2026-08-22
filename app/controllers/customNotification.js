@@ -67,11 +67,39 @@ exports.add = async (req, res, next) => {
                     reason: 'Success'
                 });
             } catch (err) {
+                // `messaging/registration-token-not-registered` means Firebase has
+                // permanently invalidated this exact token (app uninstalled, or a
+                // reinstall over the same bundle id — e.g. the App Store build
+                // replacing a TestFlight install — mints a new token). That token
+                // will never succeed again, so clear it now instead of leaving it
+                // in place to fail identically on every future broadcast; the user
+                // just needs to reopen the app to have it replaced.
+                const isDeadToken = err.code === 'messaging/registration-token-not-registered' ||
+                    err.code === 'messaging/invalid-registration-token';
+
+                if (isDeadToken) {
+                    try {
+                        const staleUser = await Auth.findOne({ id: userId });
+                        const staleDevice = staleUser?.deviceInfos?.find(
+                            info => info.fcmToken === fcmToken
+                        );
+                        if (staleDevice) {
+                            staleDevice.fcmToken = null;
+                            staleUser.markModified('deviceInfos');
+                            await staleUser.save();
+                        }
+                    } catch (cleanupErr) {
+                        console.error('Failed to clear stale FCM token:', cleanupErr.message);
+                    }
+                }
+
                 userNotifications.push({
                     userId,
                     userName: null,
                     success: false,
-                    reason: err.message || 'Unknown error while sending notification'
+                    reason: isDeadToken
+                        ? 'Device token expired — user needs to reopen the app'
+                        : (err.message || 'Unknown error while sending notification')
                 });
             }
         });
