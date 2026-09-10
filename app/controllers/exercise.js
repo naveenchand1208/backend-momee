@@ -4,9 +4,9 @@ const moment = require('moment');
 
 exports.add = async (req, res, next) => {
     try {
-        const { collectionName, duration, burnCalories, momType, status, week, month } = req.body;
-        if (!collectionName || !duration || !burnCalories || !momType) {
-            return res.apiResponse(false, 'CollectionName, duration, burnCalories, or momType is missing', {}, 400);
+        const { collectionName, collectionNameTa, duration, burnCalories, momType, status, week, month } = req.body;
+        if (!collectionName || !collectionNameTa || !duration || !burnCalories || !momType) {
+            return res.apiResponse(false, 'CollectionName, Tamil CollectionName, duration, burnCalories, or momType is missing', {}, 400);
         }
 
         if (momType === 'pregMom' && !week) {
@@ -33,6 +33,14 @@ exports.add = async (req, res, next) => {
             month,
             file: secure_url,
             public_id: public_id,
+            translations: {
+                    en: {
+                        collectionName: collectionName
+                    },
+                    ta: {
+                        collectionName: collectionNameTa
+                    }
+                }
         });
         await newExCollection.save();
         return res.apiResponse(true, 'Exercise collection added successfully', newExCollection, 200);
@@ -42,8 +50,8 @@ exports.add = async (req, res, next) => {
 }
 exports.addExercise = async (req, res, next) => {
     try {
-        const { collectionId, exerciseName, sets, seconds } = req.body;
-        if (!collectionId || !exerciseName || !sets || !seconds) {
+        const { collectionId, exerciseName, exerciseNameTa, sets, seconds } = req.body;
+        if (!collectionId || !exerciseName || !exerciseNameTa || !sets || !seconds) {
             return res.apiResponse(false, 'Exercise details are missing', {}, 400);
         }
         if (!req.file) {
@@ -66,7 +74,15 @@ exports.addExercise = async (req, res, next) => {
             sets,
             seconds,
             file: secure_url,
-            public_id
+            public_id,
+            translations: {
+                en: {
+                    exerciseName: exerciseName
+                },
+                ta: {
+                    exerciseName: exerciseNameTa
+                }
+            }
         }
         collection.exercises.push(exercise)
         // community.markModified('exercises');
@@ -185,6 +201,120 @@ exports.viewExercise = async (req, res, next) => {
         return res.apiResponse(false, 'get exercise error', { error }, 500)
     }
 }
+
+exports.updateExercise = async (req, res, next) => {
+    try {
+        const {
+            collectionId,
+            exerciseId,
+            public_id,
+            fileChanged
+        } = req.body;
+
+        if (!collectionId || !exerciseId) {
+            return res.apiResponse(
+                false,
+                'collectionId or exerciseId is missing',
+                {},
+                400
+            );
+        }
+
+        const collection = await Exercise.findOne({
+            id: collectionId
+        });
+
+        if (!collection) {
+            return res.apiResponse(
+                false,
+                'Collection not found',
+                {},
+                404
+            );
+        }
+
+        const exercise = collection.exercises.find(
+            ex => ex.exerciseId === exerciseId
+        );
+
+        if (!exercise) {
+            return res.apiResponse(
+                false,
+                'Exercise not found',
+                {},
+                404
+            );
+        }
+
+        // Update English Exercise Name
+        if (req.body.exerciseName) {
+            exercise.exerciseName = req.body.exerciseName;
+        }
+
+        // Update Tamil Exercise Name
+        if (req.body.exerciseNameTa) {
+            exercise.translations = {
+                en: {
+                    exerciseName:
+                        req.body.exerciseName ||
+                        exercise.exerciseName ||
+                        ''
+                },
+                ta: {
+                    exerciseName: req.body.exerciseNameTa
+                }
+            };
+        }
+
+        // Update Sets
+        if (req.body.sets) {
+            exercise.sets = req.body.sets;
+        }
+
+        // Update Seconds
+        if (req.body.seconds) {
+            exercise.seconds = req.body.seconds;
+        }
+
+        // Handle GIF file change
+        if (fileChanged && public_id && req.file) {
+            await deleteFromCloudinary(public_id);
+
+            const {
+                secure_url,
+                public_id: newId
+            } = await uploadToCloudinary(
+                req.file,
+                'exercise'
+            );
+
+            exercise.file = secure_url;
+            exercise.public_id = newId;
+        }
+
+        // IMPORTANT: exercises spelling
+        collection.markModified('exercises');
+
+        await collection.save();
+
+        return res.apiResponse(
+            true,
+            'Exercise updated successfully',
+            exercise,
+            200
+        );
+
+    } catch (error) {
+        console.error('Update Exercise Error:', error);
+
+        return res.apiResponse(
+            false,
+            'Error updating exercise',
+            {},
+            500
+        );
+    }
+};
 exports.update = async (req, res, next) => {
     try {
         if (req.body) {
@@ -194,6 +324,16 @@ exports.update = async (req, res, next) => {
             }
             const updateFields = {};
             if (req.body.collectionName) updateFields.collectionName = req.body.collectionName;
+            if (req.body.collectionNameTa) {
+                    updateFields.translations = {
+                        en: {
+                            collectionName: req.body.collectionName || ''
+                        },
+                        ta: {
+                            collectionName: req.body.collectionNameTa || ''
+                        }
+                    };
+                }
             if (req.body.duration) updateFields.duration = req.body.duration;
             if (req.body.burnCalories) updateFields.burnCalories = req.body.burnCalories;
             if (req.body.momType) updateFields.momType = req.body.momType;
@@ -228,47 +368,48 @@ exports.update = async (req, res, next) => {
     }
 
 };
-exports.updateExercise = async (req, res, next) => {
-    try {
-        const { collectionId, exerciseId, public_id, fileChanged } = req.body;
 
-        if (!collectionId || !exerciseId) {
-            return res.apiResponse(false, 'collectionId or exerciseId is missing', {}, 400);
-        }
+// exports.updateExercise = async (req, res, next) => {
+//     try {
+//         const { collectionId, exerciseId, public_id, fileChanged } = req.body;
 
-        const collection = await Exercise.findOne({ id: collectionId });
-        if (!collection) {
-            return res.apiResponse(false, 'Collection not found', {}, 404);
-        }
+//         if (!collectionId || !exerciseId) {
+//             return res.apiResponse(false, 'collectionId or exerciseId is missing', {}, 400);
+//         }
 
-        const exercise = collection.exercises.find(ex => ex.exerciseId === exerciseId);
-        if (!exercise) {
-            return res.apiResponse(false, 'Exercise not found', {}, 404);
-        }
+//         const collection = await Exercise.findOne({ id: collectionId });
+//         if (!collection) {
+//             return res.apiResponse(false, 'Collection not found', {}, 404);
+//         }
 
-        // Update fields
-        if (req.body.exerciseName) exercise.exerciseName = req.body.exerciseName;
-        if (req.body.sets) exercise.sets = req.body.sets;
-        if (req.body.seconds) exercise.seconds = req.body.seconds;
+//         const exercise = collection.exercises.find(ex => ex.exerciseId === exerciseId);
+//         if (!exercise) {
+//             return res.apiResponse(false, 'Exercise not found', {}, 404);
+//         }
 
-        // Handle file change
-        if (fileChanged && public_id && req.file) {
-            await deleteFromCloudinary(public_id);
-            const { secure_url, public_id: newId } = await uploadToCloudinary(req.file, 'exercise');
-            exercise.file = secure_url;
-            exercise.public_id = newId;
-        }
+//         // Update fields
+//         if (req.body.exerciseName) exercise.exerciseName = req.body.exerciseName;
+//         if (req.body.sets) exercise.sets = req.body.sets;
+//         if (req.body.seconds) exercise.seconds = req.body.seconds;
 
-        collection.markModified('exersices');
-        await collection.save();
+//         // Handle file change
+//         if (fileChanged && public_id && req.file) {
+//             await deleteFromCloudinary(public_id);
+//             const { secure_url, public_id: newId } = await uploadToCloudinary(req.file, 'exercise');
+//             exercise.file = secure_url;
+//             exercise.public_id = newId;
+//         }
 
-        return res.apiResponse(true, 'Exercise updated successfully', exercise, 200);
+//         collection.markModified('exersices');
+//         await collection.save();
 
-    } catch (error) {
-        console.error('Update Exercise Error:', error);
-        return res.apiResponse(false, 'Error updating exercise', {}, 500);
-    }
-};
+//         return res.apiResponse(true, 'Exercise updated successfully', exercise, 200);
+
+//     } catch (error) {
+//         console.error('Update Exercise Error:', error);
+//         return res.apiResponse(false, 'Error updating exercise', {}, 500);
+//     }
+// };
 exports.delete = async (req, res, next) => {
     try {
         var requests = req.bodyParams;

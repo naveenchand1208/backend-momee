@@ -4,52 +4,291 @@ const { uploadToCloudinary, deleteFromCloudinary } = require('../helpers/cloudin
 
 exports.add = async (req, res, next) => {
     try {
-        const { title, status, momType } = req.body;
+
+        const title = req.body.title;
+        const titleTa = req.body.titleTa;
+        const status = req.body.status;
+        const momType = req.body.momType;
+
         const { file, music } = req.files || {};
-        if (!title || !file || !music || !momType) {
-            return res.apiResponse(false, 'PodCasts params is missing', {}, 400);
+
+
+        console.log('================================');
+        console.log('PODCAST ADD');
+        console.log('================================');
+
+        console.log('TITLE:', title);
+        console.log('TITLE TA:', titleTa);
+        console.log('MOM TYPE:', momType);
+        console.log('STATUS:', status);
+
+
+        if (!title) {
+            return res.apiResponse(
+                false,
+                'English title is missing',
+                {},
+                400
+            );
         }
-        // if (momType === 'pregMom' && !week) {
-        //     return res.apiResponse(false, 'Week is required', {}, 400);
-        // }
-        // if (momType === 'newMom' && !month) {
-        //     return res.apiResponse(false, 'Month is required', {}, 400);
-        // }
+
+
+        if (!titleTa) {
+            return res.apiResponse(
+                false,
+                'Tamil title is missing',
+                {},
+                400
+            );
+        }
+
+
+        if (!file || !file[0]) {
+            return res.apiResponse(
+                false,
+                'Thumbnail is missing',
+                {},
+                400
+            );
+        }
+
+
+        if (!music || !music[0]) {
+            return res.apiResponse(
+                false,
+                'Music is missing',
+                {},
+                400
+            );
+        }
+
+
+        if (!momType) {
+            return res.apiResponse(
+                false,
+                'Mom Type is missing',
+                {},
+                400
+            );
+        }
+
+
         const allowedAudioTypes = [
-            'audio/mpeg',     // .mp3
-            'audio/mp3',      // .mp3 (alternative)
-            'audio/wav',      // .wav
-            'audio/x-wav',    // .wav (alternative)
-            'audio/ogg',      // .ogg
-            'audio/webm',     // .webm
-            'audio/aac',      // .aac
-            'audio/flac'      // .flac
+            'audio/mpeg',
+            'audio/mp3',
+            'audio/wav',
+            'audio/x-wav',
+            'audio/ogg',
+            'audio/webm',
+            'audio/aac',
+            'audio/flac'
         ];
-        if (!allowedAudioTypes.includes(music[0].mimetype)) {
-            return res.apiResponse(false, 'Only Audio files are allowed', { error }, 400);
-        } else {
-            console.log('audio-allowed')
+
+
+        if (
+            !allowedAudioTypes.includes(
+                music[0].mimetype
+            )
+        ) {
+
+            return res.apiResponse(
+                false,
+                'Only Audio files are allowed',
+                {},
+                400
+            );
+
         }
-        const fileUpload = await uploadToCloudinary(file[0], 'podCasts');
-        const musicUpload = await uploadToCloudinary(music[0], 'podCasts');
-        const uniqueId = `PodCasts-${moment().format('DDMMYYYYHHmmss')}`;
+
+
+        const fileUpload =
+            await uploadToCloudinary(
+                file[0],
+                'podCasts'
+            );
+
+
+        const musicUpload =
+            await uploadToCloudinary(
+                music[0],
+                'podCasts'
+            );
+
+
+        const uniqueId =
+            `PodCasts-${moment().format('DDMMYYYYHHmmss')}`;
+
+
+        const translations = {
+
+            en: {
+                title: title
+            },
+
+            ta: {
+                title: titleTa
+            }
+
+        };
+
+
+        console.log(
+            'TRANSLATIONS BEFORE SAVE:',
+            translations
+        );
+
+
         const newCasts = new PodCasts({
-            title,
-            status,
-            file: fileUpload.secure_url,
-            public_id: fileUpload.public_id,
-            music: musicUpload.secure_url,
-            music_public_id: musicUpload.public_id,
+
             id: uniqueId,
-            momType,
-        })
-        await newCasts.save()
-        return res.apiResponse(true, "PodCasts added Success", newCasts, 200);
+
+            title: title,
+
+            status: status || 'Active',
+
+            momType: momType,
+
+            file:
+                fileUpload.secure_url,
+
+            public_id:
+                fileUpload.public_id,
+
+            music:
+                musicUpload.secure_url,
+
+            music_public_id:
+                musicUpload.public_id,
+
+            translations: translations
+
+        });
+
+
+        console.log(
+            'MODEL BEFORE SAVE:',
+            newCasts.toObject()
+        );
+
+
+        await newCasts.save();
+        await PodCasts.updateOne(
+            { id: uniqueId },
+            {
+                $set: {
+                    'translations.en.title': title,
+                    'translations.ta.title': titleTa
+                }
+            },
+            {
+                strict: false
+            }
+        );
+
+
+        const savedPodcast =
+            await PodCasts.findOne({
+                id: uniqueId
+            }).lean();
+
+
+        console.log(
+            '================================'
+        );
+
+        console.log(
+            'DATABASE AFTER SAVE:'
+        );
+
+        console.log(
+            JSON.stringify(
+                savedPodcast,
+                null,
+                2
+            )
+        );
+
+        console.log(
+            'DATABASE TRANSLATIONS:',
+            savedPodcast.translations
+        );
+
+
+        return res.apiResponse(
+            true,
+            'PodCasts added Success',
+            savedPodcast,
+            200
+        );
+
+
     } catch (error) {
-        console.error("Add PodCasts Error:", error);
-        return res.apiResponse(false, 'PodCasts Add error', { error }, 500);
+
+        console.error(
+            'Add PodCasts Error:',
+            error
+        );
+
+        return res.apiResponse(
+            false,
+            'PodCasts Add error',
+            {
+                error: error.message
+            },
+            500
+        );
+
     }
-}
+};
+
+// exports.add = async (req, res, next) => {
+//     try {
+//         const { title, status, momType } = req.body;
+//         const { file, music } = req.files || {};
+//         if (!title || !file || !music || !momType) {
+//             return res.apiResponse(false, 'PodCasts params is missing', {}, 400);
+//         }
+//         // if (momType === 'pregMom' && !week) {
+//         //     return res.apiResponse(false, 'Week is required', {}, 400);
+//         // }
+//         // if (momType === 'newMom' && !month) {
+//         //     return res.apiResponse(false, 'Month is required', {}, 400);
+//         // }
+//         const allowedAudioTypes = [
+//             'audio/mpeg',     // .mp3
+//             'audio/mp3',      // .mp3 (alternative)
+//             'audio/wav',      // .wav
+//             'audio/x-wav',    // .wav (alternative)
+//             'audio/ogg',      // .ogg
+//             'audio/webm',     // .webm
+//             'audio/aac',      // .aac
+//             'audio/flac'      // .flac
+//         ];
+//         if (!allowedAudioTypes.includes(music[0].mimetype)) {
+//             return res.apiResponse(false, 'Only Audio files are allowed', { error }, 400);
+//         } else {
+//             console.log('audio-allowed')
+//         }
+//         const fileUpload = await uploadToCloudinary(file[0], 'podCasts');
+//         const musicUpload = await uploadToCloudinary(music[0], 'podCasts');
+//         const uniqueId = `PodCasts-${moment().format('DDMMYYYYHHmmss')}`;
+//         const newCasts = new PodCasts({
+//             title,
+//             status,
+//             file: fileUpload.secure_url,
+//             public_id: fileUpload.public_id,
+//             music: musicUpload.secure_url,
+//             music_public_id: musicUpload.public_id,
+//             id: uniqueId,
+//             momType,
+//         })
+//         await newCasts.save()
+//         return res.apiResponse(true, "PodCasts added Success", newCasts, 200);
+//     } catch (error) {
+//         console.error("Add PodCasts Error:", error);
+//         return res.apiResponse(false, 'PodCasts Add error', { error }, 500);
+//     }
+// }
 
 exports.list = async (req, res, next) => {
     try {
@@ -145,66 +384,326 @@ exports.view = async (req, res, next) => {
 
 exports.update = async (req, res, next) => {
     try {
-        if (req.body) {
-            const { id, public_id, music_public_id, fileChanged, musicChanged } = req.body;
-            if (id === undefined || id === null) {
-                return res.apiResponse(false, 'Id is missing', {}, 400);
-            }
-            const updateFields = {};
-            if (req.body.title) updateFields.title = req.body.title;
-            if (req.body.momType) updateFields.momType = req.body.momType;
-            if (req.body.status) updateFields.status = req.body.status;
-            // if (req.body.week) updateFields.week = req.body.week;
-            // if (req.body.month) updateFields.month = req.body.month;
-            const fileArray = req.files?.file || [];
-            const musicArray = req.files?.music || [];
 
-            if (fileChanged && public_id && fileArray[0]) {
-                await deleteFromCloudinary(public_id);
-                const result = await uploadToCloudinary(fileArray[0], 'podCasts');
-                updateFields.file = result.secure_url;
-                updateFields.public_id = result.public_id;
-            }
+        const {
+            id,
+            public_id,
+            music_public_id,
+            fileChanged,
+            musicChanged,
+            title,
+            titleTa,
+            momType,
+            status
+        } = req.body;
 
-            if (musicChanged && music_public_id && musicArray[0]) {
-                const allowedAudioTypes = [
-                    'audio/mpeg',     // .mp3
-                    'audio/mp3',      // .mp3 (alternative)
-                    'audio/wav',      // .wav
-                    'audio/x-wav',    // .wav (alternative)
-                    'audio/ogg',      // .ogg
-                    'audio/webm',     // .webm
-                    'audio/aac',      // .aac
-                    'audio/flac'      // .flac
-                ];
-                if (!allowedAudioTypes.includes(musicArray[0].mimetype)) {
-                    return res.apiResponse(false, 'Only audio files are allowed', {
-                        error: `Invalid file type: ${musicArray[0].mimetype}`
-                    }, 400);
-                }
-                await deleteFromCloudinary(music_public_id, 'video');
-                const result = await uploadToCloudinary(musicArray[0], 'podCasts');
-                updateFields.music = result.secure_url;
-                updateFields.music_public_id = result.public_id;
-            }
-            const updatedCasts = await PodCasts.findOneAndUpdate(
-                { id },
-                { $set: updateFields },
-                { new: true }
+
+        console.log('================================');
+        console.log('PODCAST UPDATE');
+        console.log('================================');
+
+        console.log('ID:', id);
+        console.log('English title:', title);
+        console.log('Tamil title:', titleTa);
+
+
+        if (!id) {
+            return res.apiResponse(
+                false,
+                'Id is missing',
+                {},
+                400
             );
-            if (!updatedCasts) {
-                return res.apiResponse(false, 'PodCasts not found', {}, 404);
-            }
-            return res.apiResponse(true, 'PodCasts updated successfully', updatedCasts, 200);
-        } else {
-            return res.apiResponse(false, 'Payload is missing', {}, 400);
         }
-    } catch (error) {
-        console.error('Update Error:', error);
-        return res.apiResponse(false, 'Error updating PodCasts', { error }, 500);
-    }
 
+
+        if (!title) {
+            return res.apiResponse(
+                false,
+                'English title is missing',
+                {},
+                400
+            );
+        }
+
+
+        if (!titleTa) {
+            return res.apiResponse(
+                false,
+                'Tamil title is missing',
+                {},
+                400
+            );
+        }
+
+
+        const existingPodcast =
+            await PodCasts.findOne({
+                id
+            });
+
+
+        if (!existingPodcast) {
+            return res.apiResponse(
+                false,
+                'PodCasts not found',
+                {},
+                404
+            );
+        }
+
+
+        const updateFields = {
+
+            title: title,
+
+            momType:
+                momType ||
+                existingPodcast.momType,
+
+            status:
+                status ||
+                existingPodcast.status,
+
+            translations: {
+
+                en: {
+                    title: title
+                },
+
+                ta: {
+                    title: titleTa
+                }
+
+            }
+
+        };
+
+
+        // ==========================================
+        // THUMBNAIL
+        // ==========================================
+
+        const fileArray =
+            req.files?.file || [];
+
+
+        if (
+            fileChanged === 'true' &&
+            public_id &&
+            fileArray[0]
+        ) {
+
+            await deleteFromCloudinary(
+                public_id
+            );
+
+
+            const result =
+                await uploadToCloudinary(
+                    fileArray[0],
+                    'podCasts'
+                );
+
+
+            updateFields.file =
+                result.secure_url;
+
+            updateFields.public_id =
+                result.public_id;
+
+        }
+
+
+        // ==========================================
+        // MUSIC
+        // ==========================================
+
+        const musicArray =
+            req.files?.music || [];
+
+
+        if (
+            musicChanged === 'true' &&
+            music_public_id &&
+            musicArray[0]
+        ) {
+
+            const allowedAudioTypes = [
+                'audio/mpeg',
+                'audio/mp3',
+                'audio/wav',
+                'audio/x-wav',
+                'audio/ogg',
+                'audio/webm',
+                'audio/aac',
+                'audio/flac'
+            ];
+
+
+            if (
+                !allowedAudioTypes.includes(
+                    musicArray[0].mimetype
+                )
+            ) {
+
+                return res.apiResponse(
+                    false,
+                    'Only audio files are allowed',
+                    {},
+                    400
+                );
+
+            }
+
+
+            await deleteFromCloudinary(
+                music_public_id,
+                'video'
+            );
+
+
+            const result =
+                await uploadToCloudinary(
+                    musicArray[0],
+                    'podCasts'
+                );
+
+
+            updateFields.music =
+                result.secure_url;
+
+            updateFields.music_public_id =
+                result.public_id;
+
+        }
+
+
+        // ==========================================
+        // SAVE
+        // ==========================================
+
+        const updatedCasts =
+            await PodCasts.findOneAndUpdate(
+
+                { id },
+
+                {
+                    $set: updateFields
+                },
+
+                {
+                    new: true
+                }
+
+            );
+
+
+        if (!updatedCasts) {
+            return res.apiResponse(
+                false,
+                'PodCasts not found',
+                {},
+                404
+            );
+        }
+
+
+        console.log(
+            'UPDATED TRANSLATIONS:',
+            updatedCasts.translations
+        );
+
+
+        return res.apiResponse(
+            true,
+            'PodCasts updated successfully',
+            updatedCasts,
+            200
+        );
+
+
+    } catch (error) {
+
+        console.error(
+            'Update Error:',
+            error
+        );
+
+        return res.apiResponse(
+            false,
+            'Error updating PodCasts',
+            {
+                error: error.message
+            },
+            500
+        );
+
+    }
 };
+
+// exports.update = async (req, res, next) => {
+//     try {
+//         if (req.body) {
+//             const { id, public_id, music_public_id, fileChanged, musicChanged } = req.body;
+//             if (id === undefined || id === null) {
+//                 return res.apiResponse(false, 'Id is missing', {}, 400);
+//             }
+//             const updateFields = {};
+//             if (req.body.title) updateFields.title = req.body.title;
+//             if (req.body.momType) updateFields.momType = req.body.momType;
+//             if (req.body.status) updateFields.status = req.body.status;
+//             // if (req.body.week) updateFields.week = req.body.week;
+//             // if (req.body.month) updateFields.month = req.body.month;
+//             const fileArray = req.files?.file || [];
+//             const musicArray = req.files?.music || [];
+
+//             if (fileChanged && public_id && fileArray[0]) {
+//                 await deleteFromCloudinary(public_id);
+//                 const result = await uploadToCloudinary(fileArray[0], 'podCasts');
+//                 updateFields.file = result.secure_url;
+//                 updateFields.public_id = result.public_id;
+//             }
+
+//             if (musicChanged && music_public_id && musicArray[0]) {
+//                 const allowedAudioTypes = [
+//                     'audio/mpeg',     // .mp3
+//                     'audio/mp3',      // .mp3 (alternative)
+//                     'audio/wav',      // .wav
+//                     'audio/x-wav',    // .wav (alternative)
+//                     'audio/ogg',      // .ogg
+//                     'audio/webm',     // .webm
+//                     'audio/aac',      // .aac
+//                     'audio/flac'      // .flac
+//                 ];
+//                 if (!allowedAudioTypes.includes(musicArray[0].mimetype)) {
+//                     return res.apiResponse(false, 'Only audio files are allowed', {
+//                         error: `Invalid file type: ${musicArray[0].mimetype}`
+//                     }, 400);
+//                 }
+//                 await deleteFromCloudinary(music_public_id, 'video');
+//                 const result = await uploadToCloudinary(musicArray[0], 'podCasts');
+//                 updateFields.music = result.secure_url;
+//                 updateFields.music_public_id = result.public_id;
+//             }
+//             const updatedCasts = await PodCasts.findOneAndUpdate(
+//                 { id },
+//                 { $set: updateFields },
+//                 { new: true }
+//             );
+//             if (!updatedCasts) {
+//                 return res.apiResponse(false, 'PodCasts not found', {}, 404);
+//             }
+//             return res.apiResponse(true, 'PodCasts updated successfully', updatedCasts, 200);
+//         } else {
+//             return res.apiResponse(false, 'Payload is missing', {}, 400);
+//         }
+//     } catch (error) {
+//         console.error('Update Error:', error);
+//         return res.apiResponse(false, 'Error updating PodCasts', { error }, 500);
+//     }
+
+// };
 
 exports.delete = async (req, res, next) => {
     try {

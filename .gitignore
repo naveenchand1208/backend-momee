@@ -6,6 +6,7 @@
 firebase.json
 service-account.json
 config/service-account.json
+app/config/google-translate.json
 
 # Node modules
 node_modules/

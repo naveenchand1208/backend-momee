@@ -44,33 +44,115 @@ async function getPaymentMethod(userId) {
 
 exports.add = async (req, res, next) => {
     try {
-        const { planName, planAmount, durationMonths, deviceType } = req.bodyParams;
-        if (!planName || !planAmount || !durationMonths) {
-            console.log('coming')
-            return res.apiResponse(false, 'Plan details are missing', {}, 400);
+        const {
+            planName,
+            planAmount,
+            durationMonths,
+            deviceType,
+            translations
+        } = req.bodyParams;
+
+        if (!planName || !planAmount || !durationMonths || !deviceType) {
+            console.log('coming');
+            return res.apiResponse(
+                false,
+                'Plan details are missing',
+                {},
+                400
+            );
         }
-        // features.length === 0
-        const checkTitle = await ExercisePlan.findOne({ planName: planName, deviceType: deviceType });
+
+        const checkTitle = await ExercisePlan.findOne({
+            planName: planName,
+            deviceType: deviceType
+        });
+
         if (checkTitle) {
-            return res.apiResponse(false, 'Plan Name already exists', {}, 400);
+            return res.apiResponse(
+                false,
+                'Plan Name already exists',
+                {},
+                400
+            );
         }
+
         const uniqueId = `ExercisePlan_${moment().format('DDMMYYYYHHmmss')}`;
+
         const newPlan = new ExercisePlan({
             planName,
             planAmount,
             durationMonths,
             deviceType,
-            // features,
+
+            translations: {
+                en: {
+                    name: planName
+                },
+                ta: {
+                    name: translations?.ta?.name || ''
+                }
+            },
+
             id: uniqueId,
-        })
+        });
+
         await newPlan.save();
-        return res.apiResponse(true, "Plans added successfully", newPlan, 200);
+
+        return res.apiResponse(
+            true,
+            "Plans added successfully",
+            newPlan,
+            200
+        );
+
     } catch (error) {
         console.error(error);
-        return res.apiResponse(false, 'Add subscription error', {}, 500);
-    }
 
-}
+        return res.apiResponse(
+            false,
+            'Add subscription error',
+            {},
+            500
+        );
+    }
+};
+// exports.add = async (req, res, next) => {
+//     try {
+//         const { planName, planAmount, durationMonths, deviceType, translations } = req.bodyParams;
+//         if (!planName || !planAmount || !durationMonths) {
+//             console.log('coming')
+//             return res.apiResponse(false, 'Plan details are missing', {}, 400);
+//         }
+//         // features.length === 0
+//         const checkTitle = await ExercisePlan.findOne({ planName: planName, deviceType: deviceType });
+//         if (checkTitle) {
+//             return res.apiResponse(false, 'Plan Name already exists', {}, 400);
+//         }
+//         const uniqueId = `ExercisePlan_${moment().format('DDMMYYYYHHmmss')}`;
+//         const newPlan = new ExercisePlan({
+//             planName,
+//             planAmount,
+//             durationMonths,
+//             deviceType,
+//             translations: {
+//                 en: {
+//                     name: planName
+//                 },
+//                 ta: {
+//                     name: translations?.ta?.name || ''
+//                 }
+//             },
+//             // features,
+//             id: uniqueId,
+//         })
+//         await newPlan.save();
+//         return res.apiResponse(true, "Plans added successfully", newPlan, 200);
+//     } catch (error) {
+//         console.error(error);
+//         return res.apiResponse(false, 'Add subscription error', {}, 500);
+//     }
+
+// }
 
 exports.list = async (req, res, next) => {
     try {
@@ -152,33 +234,119 @@ exports.view = async (req, res, next) => {
 exports.update = async (req, res, next) => {
     try {
         const requests = req.bodyParams;
-        console.log('requests', requests)
+
+        console.log('requests', requests);
+
         if (!requests.id) {
-            return res.apiResponse(false, 'Id is missing', {}, 400);
+            return res.apiResponse(
+                false,
+                'Id is missing',
+                {},
+                400
+            );
         }
-        // console.log('coming')
-        const checkTitle = await ExercisePlan.findOne({ planName: requests.planName, deviceType: requests.deviceType })
+
+        const checkTitle = await ExercisePlan.findOne({
+            planName: requests.planName,
+            deviceType: requests.deviceType
+        });
+
         if (checkTitle && checkTitle.id !== requests.id) {
-            return res.apiResponse(false, 'Plan Name already exists', {}, 400);
+            return res.apiResponse(
+                false,
+                'Plan Name already exists',
+                {},
+                400
+            );
         }
-        // console.log('coming-1')
-        const updateFields = { ...requests };
-        // console.log('Update Fields:', updateFields);
+
+        const {
+            id,
+            _id,
+            createdAt,
+            updatedAt,
+            __v,
+            ...updateFields
+        } = requests;
+
+        updateFields.translations = {
+            en: {
+                name: requests.planName || ''
+            },
+            ta: {
+                name:
+                    requests.translations?.ta?.name ||
+                    requests.planNameTa ||
+                    ''
+            }
+        };
+
+        console.log('Update Fields:', updateFields);
 
         const plan = await ExercisePlan.findOneAndUpdate(
-            { id: requests.id },
+            { id: id },
             updateFields,
             { new: true }
         );
+
         if (!plan) {
-            return res.apiResponse(false, 'Plan not found', {}, 404);
+            return res.apiResponse(
+                false,
+                'Plan not found',
+                {},
+                404
+            );
         }
-        return res.apiResponse(true, 'Plan updated successfully', plan, 200);
+
+        return res.apiResponse(
+            true,
+            'Plan updated successfully',
+            plan,
+            200
+        );
 
     } catch (error) {
-        return res.apiResponse(false, 'Error updating  Plan', {}, 500);
+        console.error('Exercise Plan update error:', error);
+
+        return res.apiResponse(
+            false,
+            'Error updating Plan',
+            {},
+            500
+        );
     }
 };
+
+// exports.update = async (req, res, next) => {
+//     try {
+//         const requests = req.bodyParams;
+//         console.log('requests', requests)
+//         if (!requests.id) {
+//             return res.apiResponse(false, 'Id is missing', {}, 400);
+//         }
+//         // console.log('coming')
+//         const checkTitle = await ExercisePlan.findOne({ planName: requests.planName, deviceType: requests.deviceType })
+//         if (checkTitle && checkTitle.id !== requests.id) {
+//             return res.apiResponse(false, 'Plan Name already exists', {}, 400);
+//         }
+//         // console.log('coming-1')
+//         const updateFields = { ...requests };
+//         // console.log('Update Fields:', updateFields);
+
+//         const plan = await ExercisePlan.findOneAndUpdate(
+//             { id: requests.id },
+//             updateFields,
+//             { new: true }
+//         );
+//         if (!plan) {
+//             return res.apiResponse(false, 'Plan not found', {}, 404);
+//         }
+//         return res.apiResponse(true, 'Plan updated successfully', plan, 200);
+
+//     } catch (error) {
+//         return res.apiResponse(false, 'Error updating  Plan', {}, 500);
+//     }
+// };
 
 exports.delete = async (req, res, next) => {
     try {

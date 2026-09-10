@@ -1,70 +1,85 @@
-const mongoose = require('mongoose')
-const mongoosePaginate = require('mongoose-paginate-v2')
+const mongoose = require('mongoose');
+const mongoosePaginate = require('mongoose-paginate-v2');
 
 const productSchema = new mongoose.Schema({
+
     id: String,
-    name: String,
-    // file1: {
-    //     type: String,
-    //     default: "",
-    // },
-    // file1_public_id: {
-    //     type: String,
-    //     default: "",
-    // },
-    // file2: {
-    //     type: String,
-    //     default: "",
-    // },
-    // file2_public_id: {
-    //     type: String,
-    //     default: "",
-    // },
-    // file3: {
-    //     type: String,
-    //     default: "",
-    // },
-    // file3_public_id: {
-    //     type: String,
-    //     default: "",
-    // },
-    // file4: {
-    //     type: String,
-    //     default: "",
-    // },
-    // file4_public_id: {
-    //     type: String,
-    //     default: "",
-    // },
-    // file5: {
-    //     type: String,
-    //     default: "",
-    // },
-    // file5_public_id: {
-    //     type: String,
-    //     default: "",
-    // },
-    files: Array,
-    description: String,
+
+    // English
+    name: {
+        type: String,
+        default: ''
+    },
+
+    // Product files
+    files: {
+        type: Array,
+        default: []
+    },
+
+    // English
+    description: {
+        type: String,
+        default: ''
+    },
+
     actualPrice: String,
+
     price: String,
+
     discountPercentage: String,
+
     momType: {
         type: String,
         enum: ['newMom', 'pregMom'],
         required: true,
     },
+
     status: {
         type: String,
         enum: ['Active', 'Inactive'],
-        default: "Active",
+        default: 'Active',
+    },
+
+    // English + Tamil
+    translations: {
+        en: {
+            name: {
+                type: String,
+                default: ''
+            },
+
+            description: {
+                type: String,
+                default: ''
+            }
+        },
+
+        ta: {
+            name: {
+                type: String,
+                default: ''
+            },
+
+            description: {
+                type: String,
+                default: ''
+            }
+        }
     }
+
 }, {
-    toJSON: { virtuals: true },
-    toObject: { virtuals: true },
+    toJSON: {
+        virtuals: true
+    },
+
+    toObject: {
+        virtuals: true
+    },
+
     timestamps: true
-})
+});
 
-productSchema.plugin(mongoosePaginate)
+productSchema.plugin(mongoosePaginate);
 
-module.exports = mongoose.model('Product', productSchema)
+module.exports = mongoose.model('Product', productSchema);

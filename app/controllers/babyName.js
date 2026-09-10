@@ -5,27 +5,107 @@ const moment = require('moment');
 
 exports.add = async (req, res, next) => {
     try {
-        const { name, type } = req.bodyParams;
-        if (!name || !type) {
+        console.log("========== BABY NAME ADD ==========");
+
+        const { name, nameTa, type } = req.bodyParams;
+
+        console.log("English Name:", name);
+        console.log("Tamil Name:", nameTa);
+        console.log("Type:", type);
+
+        if (!name || !nameTa || !type) {
             return res.apiResponse(false, 'Params is missing', {}, 400);
         }
-        const checkTitle = await BabyName.findOne({ name, type });
-        if (checkTitle) {
-            return res.apiResponse(false, 'Name already exists', {}, 400);
-        }
-        const uniqueId = `BabyName-${moment().format('DDMMYYYYHHmmss')}`;
-        const newBabyName = new BabyName({
+
+        const checkTitle = await BabyName.findOne({
             name,
-            type,
-            id: uniqueId,
+            type
         });
+
+        if (checkTitle) {
+            return res.apiResponse(
+                false,
+                'Name already exists',
+                {},
+                400
+            );
+        }
+
+        const uniqueId = `BabyName-${moment().format('DDMMYYYYHHmmss')}`;
+
+        const translations = {
+            en: {
+                name: name
+            },
+            ta: {
+                name: nameTa
+            }
+        };
+
+        console.log("FINAL TRANSLATIONS:", translations);
+
+        const newBabyName = new BabyName({
+            id: uniqueId,
+            name: name,
+            type: type,
+            translations: translations,
+            status: 'Active'
+        });
+
+        console.log(
+            "BEFORE SAVE:",
+            newBabyName.toObject()
+        );
+
         await newBabyName.save();
-        return res.apiResponse(true, "BabyName added Success", newBabyName, 200);
+
+        console.log(
+            "AFTER SAVE:",
+            newBabyName.toObject()
+        );
+
+        return res.apiResponse(
+            true,
+            'BabyName added Success',
+            newBabyName,
+            200
+        );
+
     } catch (error) {
-        console.error("Add BabyName Error:", error);
-        return res.apiResponse(false, 'BabyName Add error', { error }, 500);
+        console.error('Add BabyName Error:', error);
+
+        return res.apiResponse(
+            false,
+            'BabyName Add error',
+            { error },
+            500
+        );
     }
-}
+};
+
+// exports.add = async (req, res, next) => {
+//     try {
+//         const { name,nameTa, type, translations } = req.bodyParams;
+//         if (!name || !type) {
+//             return res.apiResponse(false, 'Params is missing', {}, 400);
+//         }
+//         const checkTitle = await BabyName.findOne({ name, type });
+//         if (checkTitle) {
+//             return res.apiResponse(false, 'Name already exists', {}, 400);
+//         }
+//         const uniqueId = `BabyName-${moment().format('DDMMYYYYHHmmss')}`;
+//         const newBabyName = new BabyName({
+//             name,
+//             type,
+//             id: uniqueId,
+//         });
+//         await newBabyName.save();
+//         return res.apiResponse(true, "BabyName added Success", newBabyName, 200);
+//     } catch (error) {
+//         console.error("Add BabyName Error:", error);
+//         return res.apiResponse(false, 'BabyName Add error', { error }, 500);
+//     }
+// }
 exports.list = async (req, res, next) => {
     try {
         const requests = req.bodyParams;
@@ -107,28 +187,145 @@ exports.view = async (req, res, next) => {
 }
 exports.update = async (req, res, next) => {
     try {
-        const { id } = req.bodyParams;
-        if (id === undefined || id === null) {
-            return res.apiResponse(false, 'Id is missing', {}, 400);
-        }
-        const updateFields = {};
-        if (req.bodyParams.name) updateFields.name = req.bodyParams.name;
-        if (req.bodyParams.status) updateFields.status = req.bodyParams.status;
-        const updatedBabyName = await BabyName.findOneAndUpdate(
-            { id },
-            { $set: updateFields },
-            { new: true }
-        );
-        if (!updatedBabyName) {
-            return res.apiResponse(false, 'BabyName not found', {}, 404);
-        }
-        return res.apiResponse(true, 'BabyName updated successfully', updatedBabyName, 200);
-    } catch (error) {
-        console.error('Update Error:', error);
-        return res.apiResponse(false, 'Error updating BabyName', {}, 500);
-    }
 
+        console.log("========== BABY NAME UPDATE ==========");
+        console.log("BODY PARAMS:", req.bodyParams);
+
+        const {
+            id,
+            name,
+            nameTa,
+            type
+        } = req.bodyParams;
+
+        console.log("ID:", id);
+        console.log("English Name:", name);
+        console.log("Tamil Name:", nameTa);
+        console.log("Type:", type);
+
+        if (!id) {
+            return res.apiResponse(
+                false,
+                'Id is missing',
+                {},
+                400
+            );
+        }
+
+        if (!name || !nameTa || !type) {
+            return res.apiResponse(
+                false,
+                'Params is missing',
+                {},
+                400
+            );
+        }
+
+        const checkTitle = await BabyName.findOne({
+            name,
+            type
+        });
+
+        if (
+            checkTitle &&
+            checkTitle.id !== id
+        ) {
+            return res.apiResponse(
+                false,
+                'Name already exists',
+                {},
+                400
+            );
+        }
+
+        const updateFields = {
+            name: name,
+
+            type: type,
+
+            translations: {
+                en: {
+                    name: name
+                },
+
+                ta: {
+                    name: nameTa
+                }
+            }
+        };
+
+        console.log(
+            "UPDATE FIELDS:",
+            updateFields
+        );
+
+        const updatedBabyName =
+            await BabyName.findOneAndUpdate(
+                { id: id },
+                { $set: updateFields },
+                { new: true }
+            );
+
+        if (!updatedBabyName) {
+            return res.apiResponse(
+                false,
+                'Baby Name not found',
+                {},
+                404
+            );
+        }
+
+        console.log(
+            "UPDATED BABY NAME:",
+            updatedBabyName
+        );
+
+        return res.apiResponse(
+            true,
+            'Baby Name updated successfully',
+            updatedBabyName,
+            200
+        );
+
+    } catch (error) {
+
+        console.error(
+            'Baby Name Update Error:',
+            error
+        );
+
+        return res.apiResponse(
+            false,
+            'Error updating Baby Name',
+            {},
+            500
+        );
+    }
 };
+// exports.update = async (req, res, next) => {
+//     try {
+//         const { id } = req.bodyParams;
+//         if (id === undefined || id === null) {
+//             return res.apiResponse(false, 'Id is missing', {}, 400);
+//         }
+//         const updateFields = {};
+//         if (req.bodyParams.name) updateFields.name = req.bodyParams.name;
+//         if (req.bodyParams.status) updateFields.status = req.bodyParams.status;
+//         const updatedBabyName = await BabyName.findOneAndUpdate(
+//             { id },
+//             { $set: updateFields },
+//             { new: true }
+//         );
+//         if (!updatedBabyName) {
+//             return res.apiResponse(false, 'BabyName not found', {}, 404);
+//         }
+//         return res.apiResponse(true, 'BabyName updated successfully', updatedBabyName, 200);
+//     } catch (error) {
+//         console.error('Update Error:', error);
+//         return res.apiResponse(false, 'Error updating BabyName', {}, 500);
+//     }
+
+// };
 exports.delete = async (req, res, next) => {
     try {
         var requests = req.bodyParams;

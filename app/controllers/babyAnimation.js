@@ -4,35 +4,164 @@ const { uploadToCloudinary, deleteFromCloudinary } = require('../helpers/cloudin
 
 exports.add = async (req, res, next) => {
     try {
-        const { name, babySize, babyWeight } = req.body;
-        if (!name || !babySize || !babyWeight || !req.file) {
-            return res.apiResponse(false, 'Params is missing', {}, 400);
+        const {
+            name,
+            nameTa,
+            babySize,
+            babyWeight
+        } = req.body;
+
+        console.log('BABY NAME:', name);
+        console.log('BABY TAMIL NAME:', nameTa);
+
+        if (!name || !nameTa || !babySize || !babyWeight || !req.file) {
+            return res.apiResponse(
+                false,
+                'Params is missing',
+                {},
+                400
+            );
         }
+
         const allowedType = 'image/gif';
+
         if (req.file.mimetype !== allowedType) {
-            return res.apiResponse(false, 'Only GIF files are allowed', {}, 400);
+            return res.apiResponse(
+                false,
+                'Only GIF files are allowed',
+                {},
+                400
+            );
         }
-        const checkTitle = await BabyAnimation.findOne({ name })
+
+        const checkTitle = await BabyAnimation.findOne({
+            name
+        });
+
         if (checkTitle) {
-            return res.apiResponse(false, 'Name already exists', {}, 400);
+            return res.apiResponse(
+                false,
+                'Name already exists',
+                {},
+                400
+            );
         }
-        const { secure_url, public_id } = await uploadToCloudinary(req.file, 'babyAnimation');
+
+        const {
+            secure_url,
+            public_id
+        } = await uploadToCloudinary(
+            req.file,
+            'babyAnimation'
+        );
+
         const uniqueId = `BabyAnimation-${moment().format('DDMMYYYYHHmmss')}`;
+
         const newAnimation = new BabyAnimation({
             name,
             babySize,
             babyWeight,
+
+            translations: {
+                en: {
+                    name: name
+                },
+                ta: {
+                    name: nameTa
+                }
+            },
+
             file: secure_url,
             public_id: public_id,
             id: uniqueId,
         });
+
+        console.log(
+            'FINAL TRANSLATIONS:',
+            newAnimation.translations
+        );
+
         await newAnimation.save();
-        return res.apiResponse(true, "BabyAnimation added Success", newAnimation, 200);
+
+        return res.apiResponse(
+            true,
+            "BabyAnimation added Success",
+            newAnimation,
+            200
+        );
+
     } catch (error) {
-        console.error("Add BabyAnimation Error:", error);
-        return res.apiResponse(false, 'BabyAnimation Add error', { error }, 500);
+        console.error(
+            "Add BabyAnimation Error:",
+            error
+        );
+
+        return res.apiResponse(
+            false,
+            'BabyAnimation Add error',
+            { error },
+            500
+        );
     }
-}
+};
+
+// exports.add = async (req, res, next) => {
+//     try {
+//         const { name, nameTa, babySize, babyWeight } = req.body;
+//         let translations = {};
+//         if (req.body.translations) {
+//             try {
+//                 translations =
+//                     typeof req.body.translations === 'string'
+//                         ? JSON.parse(req.body.translations)
+//                         : req.body.translations;
+//             } catch (error) {
+//                 console.error('Invalid translations JSON:', error);
+
+//                 return res.apiResponse(
+//                     false,
+//                     'Invalid translations data',
+//                     {},
+//                     400
+//                 );
+//             }
+//         }
+//         if (!name || !babySize || !babyWeight || !req.file) {
+//             return res.apiResponse(false, 'Params is missing', {}, 400);
+//         }
+//         const allowedType = 'image/gif';
+//         if (req.file.mimetype !== allowedType) {
+//             return res.apiResponse(false, 'Only GIF files are allowed', {}, 400);
+//         }
+//         const checkTitle = await BabyAnimation.findOne({ name })
+//         if (checkTitle) {
+//             return res.apiResponse(false, 'Name already exists', {}, 400);
+//         }
+//         const { secure_url, public_id } = await uploadToCloudinary(req.file, 'babyAnimation');
+//         const uniqueId = `BabyAnimation-${moment().format('DDMMYYYYHHmmss')}`;
+//         const newAnimation = new BabyAnimation({
+//             name,
+//             babySize,
+//             babyWeight,
+//             translations: {
+//                 en: {
+//                     name: name
+//                 },
+//                 ta: {
+//                   name: translations?.ta?.name || nameTa || ''
+//                 }
+//             },
+//             file: secure_url,
+//             public_id: public_id,
+//             id: uniqueId,
+//         });
+//         await newAnimation.save();
+//         return res.apiResponse(true, "BabyAnimation added Success", newAnimation, 200);
+//     } catch (error) {
+//         console.error("Add BabyAnimation Error:", error);
+//         return res.apiResponse(false, 'BabyAnimation Add error', { error }, 500);
+//     }
+// }
 exports.list = async (req, res, next) => {
     try {
         const requests = req.bodyParams;
@@ -115,7 +244,33 @@ exports.update = async (req, res, next) => {
                 return res.apiResponse(false, 'Id is missing', {}, 400);
             }
             const updateFields = {};
+            let translations = {};
+            if (req.body.translations) {
+                try {
+                    translations =
+                        typeof req.body.translations === 'string'
+                            ? JSON.parse(req.body.translations)
+                            : req.body.translations;
+                } catch (error) {
+                    console.error('Invalid translations JSON:', error);
+
+                    return res.apiResponse(
+                        false,
+                        'Invalid translations data',
+                        {},
+                        400
+                    );
+                }
+            }
             if (req.body.name) updateFields.name = req.body.name;
+            updateFields.translations = {
+                en: {
+                    name: req.body.name || ''
+                },
+                ta: {
+                    name: translations?.ta?.name || ''
+                }
+            };
             if (req.body.babySize) updateFields.babySize = req.body.babySize;
             if (req.body.babyWeight) updateFields.babyWeight = req.body.babyWeight;
             if (req.body.status) updateFields.status = req.body.status;

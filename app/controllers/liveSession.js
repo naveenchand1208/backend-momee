@@ -37,45 +37,220 @@ const razorpay = new Razorpay({
 
 exports.add = async (req, res, next) => {
     try {
-        const { name, fromDate, toDate, momType, status, startTime, endTime, performedBy, description, amount, MeetingLink, deviceType } = req.body;
-        if (!name || !fromDate || !toDate || !momType || !status || !startTime || !endTime || !performedBy || !description || !amount || !MeetingLink || !req.file
-        ) {
-            return res.apiResponse(false, 'Session params are missing', {}, 400);
-        }
-        // const checkTitle = await LiveSession.findOne({ name: name, momType: momType })
-        // if (checkTitle) {
-        //     return res.apiResponse(false, 'Title already exists', {}, 400);
-        // }
-        // console.log('req.body', req.body)
-        // console.log('req.file', req.file)
-        // const buffer = await fs.readFile(req.file.path);
-        // const fileUpload = await uploadImageToImageKit(buffer, req.file.originalname);
-        const fileUpload = await uploadToCloudinary(req.file, 'liveSessions');
-        // console.log('fileUpload', fileUpload)
-        const uniqueId = `LiveSessions_${moment().format('DDMMYYYYHHmmss')}`;
-        const newSession = new LiveSession({
+
+        const {
             name,
+            nameTa,
             fromDate,
             toDate,
-            startTime,
-            endTime,
             momType,
             status,
-            file: fileUpload.secure_url,
-            public_id: fileUpload.public_id,
-            id: uniqueId,
+            startTime,
+            endTime,
             performedBy,
+            performedByTa,
             description,
+            descriptionTa,
             amount,
             MeetingLink,
+            deviceType
+        } = req.body;
+
+        console.log('========== LIVE SESSION ADD ==========');
+        console.log('name:', name);
+        console.log('nameTa:', nameTa);
+        console.log('fromDate:', fromDate);
+        console.log('toDate:', toDate);
+        console.log('momType:', momType);
+        console.log('status:', status);
+        console.log('startTime:', startTime);
+        console.log('endTime:', endTime);
+        console.log('performedBy:', performedBy);
+        console.log('performedByTa:', performedByTa);
+        console.log('description:', description);
+        console.log('descriptionTa:', descriptionTa);
+        console.log('amount:', amount);
+        console.log('MeetingLink:', MeetingLink);
+        console.log('deviceType:', deviceType);
+        console.log('file:', req.file);
+
+        // ==========================================
+        // VALIDATION
+        // ==========================================
+
+        if (
+            !name ||
+            !nameTa ||
+            !fromDate ||
+            !toDate ||
+            !momType ||
+            !status ||
+            !startTime ||
+            !endTime ||
+            !performedBy ||
+            !performedByTa ||
+            !description ||
+            !descriptionTa ||
+            !amount ||
+            !MeetingLink ||
+            !req.file
+        ) {
+
+            console.log('❌ SESSION PARAMS MISSING');
+
+            return res.apiResponse(
+                false,
+                'Session params are missing',
+                {},
+                400
+            );
+        }
+
+        // ==========================================
+        // CLOUDINARY
+        // ==========================================
+
+        const fileUpload = await uploadToCloudinary(
+            req.file,
+            'liveSessions'
+        );
+
+        // ==========================================
+        // UNIQUE ID
+        // ==========================================
+
+        const uniqueId =
+            `LiveSessions_${moment().format('DDMMYYYYHHmmss')}`;
+
+        // ==========================================
+        // CREATE SESSION
+        // ==========================================
+
+        const newSession = new LiveSession({
+
+            // Existing fields
+            name,
+
+            fromDate,
+            toDate,
+
+            startTime,
+            endTime,
+
+            momType,
+
+            status,
+
+            file: fileUpload.secure_url,
+
+            public_id: fileUpload.public_id,
+
+            id: uniqueId,
+
+            performedBy,
+
+            description,
+
+            amount,
+
+            MeetingLink,
+
             deviceType,
+
+            // ==========================================
+            // ENGLISH + TAMIL
+            // ==========================================
+
+            translations: {
+
+                en: {
+                    name: name,
+                    performedBy: performedBy,
+                    description: description
+                },
+
+                ta: {
+                    name: nameTa,
+                    performedBy: performedByTa,
+                    description: descriptionTa
+                }
+
+            }
         });
-        await newSession.save()
-        return res.apiResponse(true, "Session added Success", newSession, 200);
+
+        await newSession.save();
+
+        console.log(
+            '✅ LIVE SESSION SAVED:',
+            newSession._id
+        );
+
+        return res.apiResponse(
+            true,
+            "Session added Success",
+            newSession,
+            200
+        );
+
     } catch (error) {
-        return res.apiResponse(false, 'Session Add error', { error }, 500);
+
+        console.error(
+            "❌ Add Live Session Error:",
+            error
+        );
+
+        return res.apiResponse(
+            false,
+            'Session Add error',
+            {
+                error: error.message
+            },
+            500
+        );
     }
-}
+};
+
+// exports.add = async (req, res, next) => {
+//     try {
+//         const { name, fromDate, toDate, momType, status, startTime, endTime, performedBy, description, amount, MeetingLink, deviceType } = req.body;
+//         if (!name || !fromDate || !toDate || !momType || !status || !startTime || !endTime || !performedBy || !description || !amount || !MeetingLink || !req.file
+//         ) {
+//             return res.apiResponse(false, 'Session params are missing', {}, 400);
+//         }
+//         // const checkTitle = await LiveSession.findOne({ name: name, momType: momType })
+//         // if (checkTitle) {
+//         //     return res.apiResponse(false, 'Title already exists', {}, 400);
+//         // }
+//         // console.log('req.body', req.body)
+//         // console.log('req.file', req.file)
+//         // const buffer = await fs.readFile(req.file.path);
+//         // const fileUpload = await uploadImageToImageKit(buffer, req.file.originalname);
+//         const fileUpload = await uploadToCloudinary(req.file, 'liveSessions');
+//         // console.log('fileUpload', fileUpload)
+//         const uniqueId = `LiveSessions_${moment().format('DDMMYYYYHHmmss')}`;
+//         const newSession = new LiveSession({
+//             name,
+//             fromDate,
+//             toDate,
+//             startTime,
+//             endTime,
+//             momType,
+//             status,
+//             file: fileUpload.secure_url,
+//             public_id: fileUpload.public_id,
+//             id: uniqueId,
+//             performedBy,
+//             description,
+//             amount,
+//             MeetingLink,
+//             deviceType,
+//         });
+//         await newSession.save()
+//         return res.apiResponse(true, "Session added Success", newSession, 200);
+//     } catch (error) {
+//         return res.apiResponse(false, 'Session Add error', { error }, 500);
+//     }
+// }
 
 exports.list = async (req, res, next) => {
     try {
@@ -246,47 +421,283 @@ exports.view = async (req, res, next) => {
 
 exports.update = async (req, res, next) => {
     try {
-        if (req.body) {
-            const { id, public_id, fileChanged } = req.body;
-            if (id === undefined || id === null) {
-                return res.apiResponse(false, 'Id is missing', {}, 400);
+
+        if (!req.body) {
+            return res.apiResponse(
+                false,
+                'Payload is missing',
+                {},
+                400
+            );
+        }
+
+        const {
+            id,
+            public_id,
+            fileChanged,
+
+            name,
+            nameTa,
+
+            fromDate,
+            toDate,
+
+            startTime,
+            endTime,
+
+            momType,
+
+            description,
+            descriptionTa,
+
+            status,
+
+            performedBy,
+            performedByTa,
+
+            amount,
+
+            MeetingLink,
+            MeetingLinkTa,
+
+            deviceType
+        } = req.body;
+
+        if (id === undefined || id === null) {
+            return res.apiResponse(
+                false,
+                'Id is missing',
+                {},
+                400
+            );
+        }
+
+        const updateFields = {};
+
+        // Existing English fields
+        if (name) {
+            updateFields.name = name;
+        }
+
+        if (fromDate) {
+            updateFields.fromDate = fromDate;
+        }
+
+        if (toDate) {
+            updateFields.toDate = toDate;
+        }
+
+        if (startTime) {
+            updateFields.startTime = startTime;
+        }
+
+        if (endTime) {
+            updateFields.endTime = endTime;
+        }
+
+        if (momType) {
+            updateFields.momType = momType;
+        }
+
+        if (description) {
+            updateFields.description = description;
+        }
+
+        if (status) {
+            updateFields.status = status;
+        }
+
+        if (performedBy) {
+            updateFields.performedBy = performedBy;
+        }
+
+        if (amount) {
+            updateFields.amount = amount;
+        }
+
+        if (MeetingLink) {
+            updateFields.MeetingLink = MeetingLink;
+        }
+
+        if (deviceType) {
+            updateFields.deviceType = deviceType;
+        }
+
+        // ==========================================
+        // ENGLISH + TAMIL TRANSLATIONS
+        // ==========================================
+
+        const existingSession = await LiveSession.findOne({ id });
+
+        if (!existingSession) {
+            return res.apiResponse(
+                false,
+                'Session not found',
+                {},
+                404
+            );
+        }
+
+        const existingTranslations =
+            existingSession.translations || {};
+
+        const existingEnglish =
+            existingTranslations.en || {};
+
+        const existingTamil =
+            existingTranslations.ta || {};
+
+        updateFields.translations = {
+            en: {
+                name:
+                    name ||
+                    existingEnglish.name ||
+                    existingSession.name ||
+                    '',
+
+                performedBy:
+                    performedBy ||
+                    existingEnglish.performedBy ||
+                    existingSession.performedBy ||
+                    '',
+
+                description:
+                    description ||
+                    existingEnglish.description ||
+                    existingSession.description ||
+                    '',
+
+                MeetingLink:
+                    MeetingLink ||
+                    existingEnglish.MeetingLink ||
+                    existingSession.MeetingLink ||
+                    ''
+            },
+
+            ta: {
+                name:
+                    nameTa !== undefined
+                        ? nameTa
+                        : existingTamil.name || '',
+
+                performedBy:
+                    performedByTa !== undefined
+                        ? performedByTa
+                        : existingTamil.performedBy || '',
+
+                description:
+                    descriptionTa !== undefined
+                        ? descriptionTa
+                        : existingTamil.description || '',
+
+                MeetingLink:
+                    MeetingLinkTa !== undefined
+                        ? MeetingLinkTa
+                        : existingTamil.MeetingLink || ''
             }
-            const updateFields = {};
-            if (req.body.name) updateFields.name = req.body.name;
-            if (req.body.fromDate) updateFields.fromDate = req.body.fromDate;
-            if (req.body.toDate) updateFields.toDate = req.body.toDate;
-            if (req.body.startTime) updateFields.startTime = req.body.startTime;
-            if (req.body.endTime) updateFields.endTime = req.body.endTime;
-            if (req.body.momType) updateFields.momType = req.body.momType;
-            if (req.body.description) updateFields.description = req.body.description;
-            if (req.body.status) updateFields.status = req.body.status;
-            if (req.body.performedBy) updateFields.performedBy = req.body.performedBy;
-            if (!!req.body.amount) updateFields.amount = req.body.amount;
-            if (!!req.body.MeetingLink) updateFields.MeetingLink = req.body.MeetingLink;
-            if (!!req.body.deviceType) updateFields.deviceType = req.body.deviceType;
-            if (fileChanged && public_id && req.file) {
-                await deleteFromCloudinary(public_id);
-                const result = await uploadToCloudinary(req.file, 'sessions');
-                updateFields.file = result.secure_url;
-                updateFields.public_id = result.public_id;
-            }
-            const updatedSession = await LiveSession.findOneAndUpdate(
+        };
+
+        // ==========================================
+        // FILE UPDATE
+        // ==========================================
+
+        if (fileChanged && public_id && req.file) {
+
+            await deleteFromCloudinary(public_id);
+
+            const result = await uploadToCloudinary(
+                req.file,
+                'sessions'
+            );
+
+            updateFields.file = result.secure_url;
+            updateFields.public_id = result.public_id;
+        }
+
+        const updatedSession =
+            await LiveSession.findOneAndUpdate(
                 { id: id },
                 { $set: updateFields },
-                { new: true }
+                {
+                    new: true
+                }
             );
-            if (!updatedSession) {
-                return res.apiResponse(false, 'Session not found', {}, 404);
-            }
-            return res.apiResponse(true, 'Session updated successfully', updatedSession, 200);
-        } else {
-            return res.apiResponse(false, 'Payload is missing', {}, 400);
+
+        if (!updatedSession) {
+            return res.apiResponse(
+                false,
+                'Session not found',
+                {},
+                404
+            );
         }
+
+        return res.apiResponse(
+            true,
+            'Session updated successfully',
+            updatedSession,
+            200
+        );
+
     } catch (error) {
-        console.error('Update Error:', error);
-        return res.apiResponse(false, 'Error updating Session', {}, 500);
+
+        console.error(
+            'Update Live Session Error:',
+            error
+        );
+
+        return res.apiResponse(
+            false,
+            'Error updating Session',
+            {},
+            500
+        );
     }
 };
+
+// exports.update = async (req, res, next) => {
+//     try {
+//         if (req.body) {
+//             const { id, public_id, fileChanged } = req.body;
+//             if (id === undefined || id === null) {
+//                 return res.apiResponse(false, 'Id is missing', {}, 400);
+//             }
+//             const updateFields = {};
+//             if (req.body.name) updateFields.name = req.body.name;
+//             if (req.body.fromDate) updateFields.fromDate = req.body.fromDate;
+//             if (req.body.toDate) updateFields.toDate = req.body.toDate;
+//             if (req.body.startTime) updateFields.startTime = req.body.startTime;
+//             if (req.body.endTime) updateFields.endTime = req.body.endTime;
+//             if (req.body.momType) updateFields.momType = req.body.momType;
+//             if (req.body.description) updateFields.description = req.body.description;
+//             if (req.body.status) updateFields.status = req.body.status;
+//             if (req.body.performedBy) updateFields.performedBy = req.body.performedBy;
+//             if (!!req.body.amount) updateFields.amount = req.body.amount;
+//             if (!!req.body.MeetingLink) updateFields.MeetingLink = req.body.MeetingLink;
+//             if (!!req.body.deviceType) updateFields.deviceType = req.body.deviceType;
+//             if (fileChanged && public_id && req.file) {
+//                 await deleteFromCloudinary(public_id);
+//                 const result = await uploadToCloudinary(req.file, 'sessions');
+//                 updateFields.file = result.secure_url;
+//                 updateFields.public_id = result.public_id;
+//             }
+//             const updatedSession = await LiveSession.findOneAndUpdate(
+//                 { id: id },
+//                 { $set: updateFields },
+//                 { new: true }
+//             );
+//             if (!updatedSession) {
+//                 return res.apiResponse(false, 'Session not found', {}, 404);
+//             }
+//             return res.apiResponse(true, 'Session updated successfully', updatedSession, 200);
+//         } else {
+//             return res.apiResponse(false, 'Payload is missing', {}, 400);
+//         }
+//     } catch (error) {
+//         console.error('Update Error:', error);
+//         return res.apiResponse(false, 'Error updating Session', {}, 500);
+//     }
+// };
 
 exports.delete = async (req, res, next) => {
     try {

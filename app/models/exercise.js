@@ -2,29 +2,61 @@ const mongoose = require('mongoose')
 const mongoosePaginate = require('mongoose-paginate-v2')
 
 const exerciseSchema = new mongoose.Schema({
+
     id: String,
+
     collectionName: String,
+
     duration: String,
+
     burnCalories: String,
+
     week: String,
+
     month: String,
+
     file: String,
+
     public_id: String,
+
     exercises: [
         {
             exerciseName: String,
             exerciseId: String,
+
             sets: Number,
+
             seconds: Number,
+
             file: String,
-            public_id: String
-          }
+
+            public_id: String,
+
+            translations: {
+                type: mongoose.Schema.Types.Mixed,
+                default: () => ({
+                    en: {},
+                    ta: {}
+                })
+            }
+        }
     ],
+
+    translations: {
+        type: mongoose.Schema.Types.Mixed,
+        default: () => ({
+            en: {},
+            ta: {}
+        })
+    },
+
     momType: String,
+
     status: {
         type: String,
         default: "Active",
     },
+
 }, {
     toJSON: { virtuals: true },
     toObject: { virtuals: true },

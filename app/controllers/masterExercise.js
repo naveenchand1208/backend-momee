@@ -4,29 +4,185 @@ const { uploadToCloudinary, deleteFromCloudinary } = require('../helpers/cloudin
 
 exports.add = async (req, res, next) => {
     try {
-        const { name } = req.body;
-        if (!name || !req.file) {
-            return res.apiResponse(false, 'Exercise params is missing', {}, 400);
+
+        const name = req.body.name;
+        const nameTa = req.body.nameTa;
+
+        console.log('================================');
+        console.log('MASTER EXERCISE ADD');
+        console.log('================================');
+
+        console.log('English Name:', name);
+        console.log('Tamil Name:', nameTa);
+        console.log('BODY:', req.body);
+
+
+        // English validation
+        if (!name) {
+            return res.apiResponse(
+                false,
+                'English Name is missing',
+                {},
+                400
+            );
         }
-        const checkTitle = await MasterExercise.findOne({ name: name })
-        if (checkTitle) {
-            return res.apiResponse(false, 'Exercise already exists', {}, 400);
+
+
+        // Tamil validation
+        if (!nameTa) {
+            return res.apiResponse(
+                false,
+                'Tamil Name is missing',
+                {},
+                400
+            );
         }
-        const { secure_url, public_id } = await uploadToCloudinary(req.file, 'masterExercise');
-        const uniqueId = `MasterExercise-${moment().format('DDMMYYYYHHmmss')}`;
-        const newExercise = new MasterExercise({
-            name,
-            file: secure_url,
-            public_id: public_id,
-            id: uniqueId,
+
+
+        // Thumbnail validation
+        if (!req.file) {
+            return res.apiResponse(
+                false,
+                'Thumbnail is missing',
+                {},
+                400
+            );
+        }
+
+
+        // Duplicate English name
+        const checkTitle = await MasterExercise.findOne({
+            name: name
         });
-        await newExercise.save();
-        return res.apiResponse(true, "Exercise added Success", newExercise, 200);
+
+        if (checkTitle) {
+            return res.apiResponse(
+                false,
+                'Exercise already exists',
+                {},
+                400
+            );
+        }
+
+
+        // Upload thumbnail
+        const {
+            secure_url,
+            public_id
+        } = await uploadToCloudinary(
+            req.file,
+            'masterExercise'
+        );
+
+
+        // Unique ID
+        const uniqueId =
+            `MasterExercise-${moment().format('DDMMYYYYHHmmss')}`;
+
+
+        // Create document
+        const newExercise = new MasterExercise({
+
+            id: uniqueId,
+
+            // Existing English field
+            name: name,
+
+            file: secure_url,
+
+            public_id: public_id,
+
+            status: 'Active',
+
+            // English + Tamil
+            translations: {
+                en: {
+                    name: name
+                },
+                ta: {
+                    name: nameTa
+                }
+            }
+
+        });
+
+
+        console.log(
+            'BEFORE SAVE:',
+            JSON.stringify(
+                newExercise.toObject(),
+                null,
+                2
+            )
+        );
+
+
+        // Save
+        const savedExercise =
+            await newExercise.save();
+
+
+        console.log(
+            'AFTER SAVE:',
+            JSON.stringify(
+                savedExercise.toObject(),
+                null,
+                2
+            )
+        );
+
+
+        return res.apiResponse(
+            true,
+            'Exercise added Success',
+            savedExercise,
+            200
+        );
+
+
     } catch (error) {
-        console.error("Add Exercise Error:", error);
-        return res.apiResponse(false, 'Exercise Add error', { error }, 500);
+
+        console.error(
+            'Add Exercise Error:',
+            error
+        );
+
+        return res.apiResponse(
+            false,
+            'Exercise Add error',
+            {
+                error: error.message
+            },
+            500
+        );
     }
-}
+};
+
+// exports.add = async (req, res, next) => {
+//     try {
+//         const { name } = req.body;
+//         if (!name || !req.file) {
+//             return res.apiResponse(false, 'Exercise params is missing', {}, 400);
+//         }
+//         const checkTitle = await MasterExercise.findOne({ name: name })
+//         if (checkTitle) {
+//             return res.apiResponse(false, 'Exercise already exists', {}, 400);
+//         }
+//         const { secure_url, public_id } = await uploadToCloudinary(req.file, 'masterExercise');
+//         const uniqueId = `MasterExercise-${moment().format('DDMMYYYYHHmmss')}`;
+//         const newExercise = new MasterExercise({
+//             name,
+//             file: secure_url,
+//             public_id: public_id,
+//             id: uniqueId,
+//         });
+//         await newExercise.save();
+//         return res.apiResponse(true, "Exercise added Success", newExercise, 200);
+//     } catch (error) {
+//         console.error("Add Exercise Error:", error);
+//         return res.apiResponse(false, 'Exercise Add error', { error }, 500);
+//     }
+// }
 
 exports.list = async (req, res, next) => {
     try {
@@ -94,63 +250,319 @@ exports.list = async (req, res, next) => {
 
 exports.view = async (req, res, next) => {
     try {
-        var requests = req.bodyParams;
+
+        const requests = req.bodyParams;
+
         if (!requests.id) {
-            return res.apiResponse(false, 'Id is missing', {}, 400);
+            return res.apiResponse(
+                false,
+                'Id is missing',
+                {},
+                400
+            );
         }
-        const exercise = await MasterExercise.findOne({ id: requests.id })
+
+        const exercise =
+            await MasterExercise.findOne({
+                id: requests.id
+            });
+
         if (!exercise) {
-            return res.apiResponse(false, 'Exercise not found', {}, 404);
+            return res.apiResponse(
+                false,
+                'Exercise not found',
+                {},
+                404
+            );
         }
-        return res.apiResponse(true, 'Success', exercise, 200);
+
+        return res.apiResponse(
+            true,
+            'Success',
+            exercise,
+            200
+        );
+
     } catch (error) {
-        return res.apiResponse(false, 'get Exercise error', {}, 500)
+
+        return res.apiResponse(
+            false,
+            'get Exercise error',
+            {},
+            500
+        );
+
     }
-}
+};
+
+// exports.view = async (req, res, next) => {
+//     try {
+//         var requests = req.bodyParams;
+//         if (!requests.id) {
+//             return res.apiResponse(false, 'Id is missing', {}, 400);
+//         }
+//         const exercise = await MasterExercise.findOne({ id: requests.id })
+//         if (!exercise) {
+//             return res.apiResponse(false, 'Exercise not found', {}, 404);
+//         }
+//         return res.apiResponse(true, 'Success', exercise, 200);
+//     } catch (error) {
+//         return res.apiResponse(false, 'get Exercise error', {}, 500)
+//     }
+// }
 
 exports.update = async (req, res, next) => {
     try {
-        if (req.body) {
-            const body = Object(req.body);
-            const { id, public_id, fileChanged } = body;
-            if (id === undefined || id === null) {
-                return res.apiResponse(false, 'Id is missing', {}, 400);
-            }
-            const updateFields = {};
-            if (req.body.name) {
-                const checkTitle = await MasterExercise.findOne({ name: req.body.name })
-                if (checkTitle && checkTitle.id !== id) {
-                    return res.apiResponse(false, 'Title already exists', {}, 400);
-                }
-                updateFields.name = req.body.name;
-            }
-            if (req.body.status) updateFields.status = req.body.status;
-            if (fileChanged && public_id) {
-                await deleteFromCloudinary(public_id);
-                if (req.file) {
-                    const { secure_url, public_id } = await uploadToCloudinary(req.file, 'masterExercise');
-                    updateFields.file = secure_url;
-                    updateFields.public_id = public_id;
-                }
-            }
-            const updatedTeplate = await MasterExercise.findOneAndUpdate(
-                { id },
-                { $set: updateFields },
-                { new: true }
-            );
-            if (!updatedTeplate) {
-                return res.apiResponse(false, 'Exercise not found', {}, 404);
-            }
-            return res.apiResponse(true, 'Exercise updated successfully', updatedTeplate, 200);
-        } else {
-            return res.apiResponse(false, 'Payload is missing', {}, 400);
-        }
-    } catch (error) {
-        console.error('Update Error:', error);
-        return res.apiResponse(false, 'Error updating Exercise', {}, 500);
-    }
 
+        if (!req.body) {
+            return res.apiResponse(
+                false,
+                'Payload is missing',
+                {},
+                400
+            );
+        }
+
+
+        const {
+            id,
+            public_id,
+            fileChanged,
+            name,
+            nameTa,
+            status
+        } = req.body;
+
+
+        console.log('================================');
+        console.log('MASTER EXERCISE UPDATE');
+        console.log('================================');
+
+        console.log('ID:', id);
+        console.log('English Name:', name);
+        console.log('Tamil Name:', nameTa);
+
+
+        if (!id) {
+            return res.apiResponse(
+                false,
+                'Id is missing',
+                {},
+                400
+            );
+        }
+
+
+        if (!name) {
+            return res.apiResponse(
+                false,
+                'English Name is missing',
+                {},
+                400
+            );
+        }
+
+
+        if (!nameTa) {
+            return res.apiResponse(
+                false,
+                'Tamil Name is missing',
+                {},
+                400
+            );
+        }
+
+
+        // Existing workout
+        const existingExercise =
+            await MasterExercise.findOne({
+                id: id
+            });
+
+
+        if (!existingExercise) {
+            return res.apiResponse(
+                false,
+                'Exercise not found',
+                {},
+                404
+            );
+        }
+
+
+        // Duplicate English name
+        const checkTitle =
+            await MasterExercise.findOne({
+                name: name,
+                id: { $ne: id }
+            });
+
+
+        if (checkTitle) {
+            return res.apiResponse(
+                false,
+                'Exercise already exists',
+                {},
+                400
+            );
+        }
+
+
+        const updateFields = {
+
+            name: name,
+
+            status:
+                status ||
+                existingExercise.status,
+
+            translations: {
+                en: {
+                    name: name
+                },
+                ta: {
+                    name: nameTa
+                }
+            }
+
+        };
+
+
+        // File update
+        if (
+            fileChanged &&
+            public_id &&
+            req.file
+        ) {
+
+            await deleteFromCloudinary(
+                public_id
+            );
+
+
+            const result =
+                await uploadToCloudinary(
+                    req.file,
+                    'masterExercise'
+                );
+
+
+            updateFields.file =
+                result.secure_url;
+
+            updateFields.public_id =
+                result.public_id;
+        }
+
+
+        // Update database
+        const updatedExercise =
+            await MasterExercise.findOneAndUpdate(
+
+                {
+                    id: id
+                },
+
+                {
+                    $set: updateFields
+                },
+
+                {
+                    new: true,
+                    runValidators: true
+                }
+
+            );
+
+
+        if (!updatedExercise) {
+            return res.apiResponse(
+                false,
+                'Exercise not found',
+                {},
+                404
+            );
+        }
+
+
+        console.log(
+            'UPDATED DOCUMENT:',
+            JSON.stringify(
+                updatedExercise.toObject(),
+                null,
+                2
+            )
+        );
+
+
+        return res.apiResponse(
+            true,
+            'Exercise updated successfully',
+            updatedExercise,
+            200
+        );
+
+
+    } catch (error) {
+
+        console.error(
+            'Update Error:',
+            error
+        );
+
+        return res.apiResponse(
+            false,
+            'Error updating Exercise',
+            {
+                error: error.message
+            },
+            500
+        );
+    }
 };
+// exports.update = async (req, res, next) => {
+//     try {
+//         if (req.body) {
+//             const body = Object(req.body);
+//             const { id, public_id, fileChanged } = body;
+//             if (id === undefined || id === null) {
+//                 return res.apiResponse(false, 'Id is missing', {}, 400);
+//             }
+//             const updateFields = {};
+//             if (req.body.name) {
+//                 const checkTitle = await MasterExercise.findOne({ name: req.body.name })
+//                 if (checkTitle && checkTitle.id !== id) {
+//                     return res.apiResponse(false, 'Title already exists', {}, 400);
+//                 }
+//                 updateFields.name = req.body.name;
+//             }
+//             if (req.body.status) updateFields.status = req.body.status;
+//             if (fileChanged && public_id) {
+//                 await deleteFromCloudinary(public_id);
+//                 if (req.file) {
+//                     const { secure_url, public_id } = await uploadToCloudinary(req.file, 'masterExercise');
+//                     updateFields.file = secure_url;
+//                     updateFields.public_id = public_id;
+//                 }
+//             }
+//             const updatedTeplate = await MasterExercise.findOneAndUpdate(
+//                 { id },
+//                 { $set: updateFields },
+//                 { new: true }
+//             );
+//             if (!updatedTeplate) {
+//                 return res.apiResponse(false, 'Exercise not found', {}, 404);
+//             }
+//             return res.apiResponse(true, 'Exercise updated successfully', updatedTeplate, 200);
+//         } else {
+//             return res.apiResponse(false, 'Payload is missing', {}, 400);
+//         }
+//     } catch (error) {
+//         console.error('Update Error:', error);
+//         return res.apiResponse(false, 'Error updating Exercise', {}, 500);
+//     }
+
+// };
 
 exports.delete = async (req, res, next) => {
     try {

@@ -8,6 +8,13 @@ const babyAnimationSchema = new mongoose.Schema({
     babyWeight: Number,
     file: String,
     public_id: String,
+    translations: {
+        type: mongoose.Schema.Types.Mixed,
+        default: () => ({
+            en: {},
+            ta: {}
+        })
+    },
     status: {
         type: String,
         default: "Active",

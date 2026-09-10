@@ -1,0 +1,10 @@
+{
+  "common": {
+    "success": "வெற்றி",
+    "error": "பிழை",
+    "idMissing": "ஐடி குறிப்பிடப்படவில்லை",
+    "payloadMissing": "தரவு குறிப்பிடப்படவில்லை",
+    "paramsMissing": "கோரிக்கையில் params குறிப்பிடப்படவில்லை",
+    "paramsParseError": "params தரவைப் படிக்கும்போது பிழை ஏற்பட்டது"
+  }
+}

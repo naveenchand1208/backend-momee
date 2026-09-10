@@ -11,6 +11,13 @@ const dietSubscriptionSchema = new mongoose.Schema({
         enum: ['android', 'ios'],
         default: 'android',
     },
+    translations: {
+        type: mongoose.Schema.Types.Mixed,
+        default: () => ({
+            en: {},
+            ta: {}
+        })
+    },
     status: {
         type: String,
         default: "Active",

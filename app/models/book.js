@@ -4,6 +4,13 @@ const mongoosePaginate = require('mongoose-paginate-v2')
 const bookSchema = new mongoose.Schema({
     id: String,
     title: String,
+    translations: {
+            type: mongoose.Schema.Types.Mixed,
+            default: () => ({
+                en: {},
+                ta: {}
+            })
+        },
     file: String,
     public_id: String,
     book: String,

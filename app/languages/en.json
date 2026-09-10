@@ -1,0 +1,10 @@
+{
+  "common": {
+    "success": "Success",
+    "error": "Error",
+    "idMissing": "Id is missing",
+    "payloadMissing": "Payload is missing",
+    "paramsMissing": "Missing params in the request body",
+    "paramsParseError": "Error parsing params"
+  }
+}

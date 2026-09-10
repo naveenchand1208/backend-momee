@@ -8,54 +8,158 @@ const { formatDate } = require('../helpers/util');
 
 exports.add = async (req, res, next) => {
     try {
-        console.log('req.body', req.body)
-        const { title, categoryId, momType, status, description, week, month, duration } = req.body;
-        console.log('req.body', req.body)
+        console.log('req.body', req.body);
+
+        const {
+            title,
+            categoryId,
+            momType,
+            status,
+            description,
+            week,
+            month,
+            duration
+        } = req.body;
+
+        // FormData sends translations as a JSON string
+        let translations = {};
+
+        if (req.body.translations) {
+            try {
+                translations =
+                    typeof req.body.translations === 'string'
+                        ? JSON.parse(req.body.translations)
+                        : req.body.translations;
+            } catch (error) {
+                console.error('Invalid translations JSON:', error);
+
+                return res.apiResponse(
+                    false,
+                    'Invalid translations data',
+                    {},
+                    400
+                );
+            }
+        }
+
+        console.log('Parsed translations:', translations);
+
         const { file, banner } = req.files || {};
 
-        if (!title || !categoryId || !description || !momType || !status || !file || !duration) {
-            return res.apiResponse(false, 'Article params are missing', {}, 400);
+        if (
+            !title ||
+            !categoryId ||
+            !description ||
+            !momType ||
+            !status ||
+            !file ||
+            !duration
+        ) {
+            return res.apiResponse(
+                false,
+                'Article params are missing',
+                {},
+                400
+            );
         }
-        const checkTitle = await Article.findOne({ title: title, momType: momType })
+
+        const checkTitle = await Article.findOne({
+            title: title,
+            momType: momType
+        });
+
         if (checkTitle) {
-            return res.apiResponse(false, 'Title already exists', {}, 400);
+            return res.apiResponse(
+                false,
+                'Title already exists',
+                {},
+                400
+            );
         }
+
         if (momType === 'pregMom' && !week) {
-            return res.apiResponse(false, 'Week is required', {}, 400);
+            return res.apiResponse(
+                false,
+                'Week is required',
+                {},
+                400
+            );
         }
 
         if (momType === 'newMom' && !month) {
-            return res.apiResponse(false, 'Month is required', {}, 400);
+            return res.apiResponse(
+                false,
+                'Month is required',
+                {},
+                400
+            );
         }
-        const fileUpload = await uploadToCloudinary(file[0], 'articles');
+
+        const fileUpload = await uploadToCloudinary(
+            file[0],
+            'articles'
+        );
+
         let bannerUpload;
+
         if (banner) {
-            bannerUpload = await uploadToCloudinary(banner[0], 'articles');
+            bannerUpload = await uploadToCloudinary(
+                banner[0],
+                'articles'
+            );
         }
+
         const now = moment().format('DDMMYYYYHHmmss');
         const uniqueId = `Article-${now}`;
+
         let maxDoc;
+
         if (momType === 'pregMom') {
-            maxDoc = await Article.findOne({ momType, week }).sort({ index: -1 });
+            maxDoc = await Article
+                .findOne({ momType, week })
+                .sort({ index: -1 });
         } else {
-            maxDoc = await Article.findOne({ momType, month }).sort({ index: -1 });
+            maxDoc = await Article
+                .findOne({ momType, month })
+                .sort({ index: -1 });
         }
 
         let index;
+
         if (maxDoc && typeof maxDoc.index === 'number') {
             index = maxDoc.index + 1;
         } else {
             index = 0;
         }
+
         const newArticle = new Article({
             title,
             categoryId,
             status,
             description,
+
+            translations: {
+                en: {
+                    title: title,
+                    description: description
+                },
+                ta: {
+                    title: translations?.ta?.title || '',
+                    description: translations?.ta?.description || ''
+                }
+            },
+
             file: fileUpload.secure_url,
             public_id: fileUpload.public_id,
-            banner: banner ? bannerUpload.secure_url : "",
-            banner_public_id: banner ? bannerUpload.public_id : "",
+
+            banner: banner
+                ? bannerUpload.secure_url
+                : "",
+
+            banner_public_id: banner
+                ? bannerUpload.public_id
+                : "",
+
             id: uniqueId,
             momType,
             week,
@@ -63,12 +167,32 @@ exports.add = async (req, res, next) => {
             duration,
             index
         });
-        await newArticle.save()
-        return res.apiResponse(true, "Article added Success", newArticle, 200);
+
+        console.log(
+            'Saving translations:',
+            newArticle.translations
+        );
+
+        await newArticle.save();
+
+        return res.apiResponse(
+            true,
+            "Article added Success",
+            newArticle,
+            200
+        );
+
     } catch (error) {
-        return res.apiResponse(false, 'Article Add error', { error }, 500);
+        console.error('Article Add Error:', error);
+
+        return res.apiResponse(
+            false,
+            'Article Add error',
+            { error },
+            500
+        );
     }
-}
+};
 
 // exports.list = async (req, res, next) => {
 //     try {
@@ -331,6 +455,16 @@ exports.update = async (req, res, next) => {
             const updateFields = {};
             if (req.body.title) updateFields.title = req.body.title;
             if (req.body.description) updateFields.description = req.body.description;
+                            updateFields.translations = {
+                    en: {
+                        title: req.body.title || '',
+                        description: req.body.description || ''
+                    },
+                    ta: {
+                        title: req.body.translations?.ta?.title || '',
+                        description: req.body.translations?.ta?.description || ''
+                    }
+                };
             if (req.body.categoryId) updateFields.categoryId = req.body.categoryId;
             if (req.body.status) updateFields.status = req.body.status;
             if (req.body.momType && req.body.momType === 'pregMom') {

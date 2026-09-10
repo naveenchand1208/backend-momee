@@ -1,3 +1,4 @@
+const { localizedApiResponse } = require('./controllerLocalization');
 const Hospital = require('../models/hospitals')
 const moment = require('moment');
 const { uploadToCloudinary, deleteFromCloudinary } = require('../helpers/cloudinary');
@@ -5,23 +6,97 @@ const { addressToLatLng } = require('../helpers/geocoder');
 const HospitalDepartment = require('../models/hospitalDepartment');
 const { exportToExcel } = require('../helpers/excel');
 
+const parseTranslations = (value) => {
+    if (!value) return null;
+    if (typeof value === 'object') return value;
+    if (typeof value === 'string') {
+        try {
+            return JSON.parse(value);
+        } catch (e) {
+            return null;
+        }
+    }
+    return null;
+};
+
+const normalizeDoctors = (doctors = []) => {
+    if (!Array.isArray(doctors)) return doctors;
+    return doctors.map((doctor) => {
+        const item = { ...doctor };
+        const translations = parseTranslations(item.translations) || {};
+        item.translations = {
+            en: {
+                ...(translations.en || {}),
+                name: translations.en?.name ?? item.name ?? '',
+                bio: translations.en?.bio ?? item.bio ?? ''
+            },
+            ta: {
+                ...(translations.ta || {}),
+                name: translations.ta?.name ?? item.nameTa ?? '',
+                bio: translations.ta?.bio ?? item.bioTa ?? ''
+            }
+        };
+        return item;
+    });
+};
+
+const normalizeFacilities = (facilities = []) => {
+    if (!Array.isArray(facilities)) return facilities;
+    return facilities.map((facility) => {
+        const item = { ...facility };
+        const translations = parseTranslations(item.translations) || {};
+        item.translations = {
+            en: {
+                ...(translations.en || {}),
+                decription: translations.en?.decription ?? item.decription ?? ''
+            },
+            ta: {
+                ...(translations.ta || {}),
+                decription: translations.ta?.decription ?? item.decriptionTa ?? ''
+            }
+        };
+        return item;
+    });
+};
+
 exports.add = async (req, res, next) => {
     try {
-        const { name, address, mobile, latitude, longitude, email, departmentIds, typeIds, Doctors, facilities } = req.body;
+        //const { name, address, mobile, latitude, longitude, email, departmentIds, typeIds, Doctors, facilities, translations } = req.body;
+        const {
+    name,
+    address,
+    mobile,
+    latitude,
+    longitude,
+    email,
+    departmentIds = [],
+    typeIds = [],
+    Doctors = [],
+    facilities = [],
+    translations
+} = req.body;
         if (!name || !address || !mobile || !req.file || !email || departmentIds.length === 0 || typeIds.length === 0 || Doctors.length === 0 || facilities.length === 0) {
-            return res.apiResponse(false, 'Hospital params is missing', {}, 400);
+            return localizedApiResponse(req, res, false, 'Hospital params is missing', {}, 400);
         }
         const checkTitle = await Hospital.findOne({ name: name })
         if (checkTitle) {
-            return res.apiResponse(false, 'Hospital Name already exists', {}, 400);
+            return localizedApiResponse(req, res, false, 'Hospital Name already exists', {}, 400);
         }
         const { secure_url, public_id } = await uploadToCloudinary(req.file, 'hospitals');
         const now = moment().format('DDMMYYYYHHmmss');
         const uniqueId = `Hospital-${now}`;
+        const parsedTranslations = parseTranslations(translations);
+        const normalizedDoctors = normalizeDoctors(Doctors);
+        const normalizedFacilities = normalizeFacilities(facilities);
+
         const newHospital = new Hospital({
             name,
             email,
             address,
+            translations: parsedTranslations || {
+                en: { name, address },
+                ta: { name: '', address: '' }
+            },
             mobile,
             latitude,
             longitude,
@@ -30,8 +105,8 @@ exports.add = async (req, res, next) => {
             id: uniqueId,
             departmentIds: departmentIds,
             typeIds: typeIds,
-            Doctors: Doctors,
-            facilities: facilities,
+            Doctors: normalizedDoctors,
+            facilities: normalizedFacilities,
             // departmentIds: safeParse(departmentIds),
             // typeIds: safeParse(typeIds),
             // Doctors: safeParse(Doctors),
@@ -42,9 +117,9 @@ exports.add = async (req, res, next) => {
             coordinates: [parseFloat(longitude), parseFloat(latitude)]
         };
         await newHospital.save()
-        return res.apiResponse(true, "Hospital added Success", newHospital, 200);
+        return localizedApiResponse(req, res, true, "Hospital added Success", newHospital, 200);
     } catch (error) {
-        return res.apiResponse(false, 'Hospital Add error', { error }, 500);
+        return localizedApiResponse(req, res, false, 'Hospital Add error', { error }, 500);
     }
 }
 
@@ -95,7 +170,7 @@ exports.add = async (req, res, next) => {
 //             // options.sort = { createdAt: 1 };
 //             Hospital.paginate(match, options, async function (err, data) {
 //                 if (err) {
-//                     return res.apiResponse(false, "Error while fetching lists", {}, 404);
+//                     return localizedApiResponse(req, res, false, "Error while fetching lists", {}, 404);
 //                 }
 //                 data.docs = await Promise.all(
 //                     data.docs.map(async (item) => {
@@ -116,7 +191,7 @@ exports.add = async (req, res, next) => {
 //                         };
 //                     })
 //                 );
-//                 return res.apiResponse(true, "Success", data, 200);
+//                 return localizedApiResponse(req, res, true, "Success", data, 200);
 //             });
 //         } else {
 //             const query = Object.keys(match).length === 0
@@ -142,10 +217,10 @@ exports.add = async (req, res, next) => {
 //                     };
 //                 })
 //             );
-//             return res.apiResponse(true, "Success", { docs: Hospitals }, 200);
+//             return localizedApiResponse(req, res, true, "Success", { docs: Hospitals }, 200);
 //         }
 //     } catch (error) {
-//         return res.apiResponse(false, 'Get list error', {}, 500);
+//         return localizedApiResponse(req, res, false, 'Get list error', {}, 500);
 //     }
 // }
 
@@ -185,17 +260,17 @@ exports.list = async (req, res) => {
             };
 
             Hospital.paginate(match, options, async (err, data) => {
-                if (err) return res.apiResponse(false, "Error while fetching lists", {}, 404);
+                if (err) return localizedApiResponse(req, res, false, "Error while fetching lists", {}, 404);
                 data.docs = await Promise.all(data.docs.map(await enrichHospital));
-                return res.apiResponse(true, "Success", data, 200);
+                return localizedApiResponse(req, res, true, "Success", data, 200);
             });
         } else {
             const hospitalDocs = await Hospital.find(match).sort({ [sortField]: sortOrder === 'asc' ? 1 : -1 });
             const Hospitals = await Promise.all(hospitalDocs.map(enrichHospital));
-            return res.apiResponse(true, "Success", { docs: Hospitals }, 200);
+            return localizedApiResponse(req, res, true, "Success", { docs: Hospitals }, 200);
         }
     } catch (error) {
-        return res.apiResponse(false, 'Get list error', {}, 500);
+        return localizedApiResponse(req, res, false, 'Get list error', {}, 500);
     }
 };
 
@@ -203,16 +278,16 @@ exports.view = async (req, res, next) => {
     try {
         var requests = req.bodyParams;
         if (!requests.id) {
-            return res.apiResponse(false, 'Id is missing', {}, 400);
+            return localizedApiResponse(req, res, false, 'Id is missing', {}, 400);
         }
         const hospital = await Hospital.findOne({ id: requests.id })
         if (!hospital) {
-            return res.apiResponse(false, 'Hospital not found', {}, 404);
+            return localizedApiResponse(req, res, false, 'Hospital not found', {}, 404);
         }
         const HospitalParseAndDeparetment = await enrichHospital(hospital);
-        return res.apiResponse(true, 'Success', HospitalParseAndDeparetment, 200);
+        return localizedApiResponse(req, res, true, 'Success', HospitalParseAndDeparetment, 200);
     } catch (error) {
-        return res.apiResponse(false, 'get Hospital error', {}, 500)
+        return localizedApiResponse(req, res, false, 'get Hospital error', {}, 500)
     }
 }
 
@@ -221,11 +296,16 @@ exports.update = async (req, res, next) => {
         if (req.body) {
             const { id, public_id, fileChanged } = req.body;
             if (id === undefined || id === null) {
-                return res.apiResponse(false, 'Id is missing', {}, 400);
+                return localizedApiResponse(req, res, false, 'Id is missing', {}, 400);
             }
             const updateFields = {};
             if (req.body.name) updateFields.name = req.body.name;
             if (req.body.email) updateFields.email = req.body.email;
+
+            if (req.body.translations) {
+                const parsedTranslations = parseTranslations(req.body.translations);
+                if (parsedTranslations) updateFields.translations = parsedTranslations;
+            }
             if (req.body.address) updateFields.address = req.body.address;
             if (req.body.mobile) updateFields.mobile = req.body.mobile;
             if (req.body.latitude) updateFields.latitude = req.body.latitude;
@@ -233,8 +313,8 @@ exports.update = async (req, res, next) => {
             if (req.body.status) updateFields.status = req.body.status;
             if (req.body.departmentIds) updateFields.departmentIds = req.body.departmentIds;
             if (req.body.typeIds) updateFields.typeIds = req.body.typeIds;
-            if (req.body.Doctors) updateFields.Doctors = req.body.Doctors;
-            if (req.body.facilities) updateFields.facilities = req.body.facilities;
+            if (req.body.Doctors) updateFields.Doctors = normalizeDoctors(req.body.Doctors);
+            if (req.body.facilities) updateFields.facilities = normalizeFacilities(req.body.facilities);
             // if (req.body.departmentIds) updateFields.departmentIds = safeParse(req.body.departmentIds);
             // if (req.body.typeIds) updateFields.typeIds = safeParse(req.body.typeIds);
             // if (req.body.Doctors) updateFields.Doctors = safeParse(req.body.Doctors);
@@ -253,15 +333,15 @@ exports.update = async (req, res, next) => {
                 { new: true }
             );
             if (!updatedHospital) {
-                return res.apiResponse(false, 'Hospital not found', {}, 404);
+                return localizedApiResponse(req, res, false, 'Hospital not found', {}, 404);
             }
-            return res.apiResponse(true, 'Hospital updated successfully', updatedHospital, 200);
+            return localizedApiResponse(req, res, true, 'Hospital updated successfully', updatedHospital, 200);
         } else {
-            return res.apiResponse(false, 'Payload is missing', {}, 400);
+            return localizedApiResponse(req, res, false, 'Payload is missing', {}, 400);
         }
     } catch (error) {
         console.error('Update Error:', error);
-        return res.apiResponse(false, 'Error updating Hospital', {}, 500);
+        return localizedApiResponse(req, res, false, 'Error updating Hospital', {}, 500);
     }
 
 };
@@ -270,21 +350,21 @@ exports.delete = async (req, res, next) => {
     try {
         var requests = req.bodyParams;
         if (!requests.id) {
-            return res.apiResponse(false, 'Id is missing', {}, 400);
+            return localizedApiResponse(req, res, false, 'Id is missing', {}, 400);
         }
         const hospital = await Hospital.findOne({ id: requests.id });
         if (!hospital) {
-            return res.apiResponse(false, 'Hospital not found', {}, 404)
+            return localizedApiResponse(req, res, false, 'Hospital not found', {}, 404)
         }
         const result = await Hospital.deleteOne({ id: requests.id });
 
         if (result.deletedCount === 0) {
-            return res.apiResponse(false, 'Hospital not found', {}, 404)
+            return localizedApiResponse(req, res, false, 'Hospital not found', {}, 404)
         }
         await deleteFromCloudinary(hospital.public_id)
-        return res.apiResponse(true, 'Hospital deleted successfully', result, 200)
+        return localizedApiResponse(req, res, true, 'Hospital deleted successfully', result, 200)
     } catch (error) {
-        return res.apiResponse(false, 'Delete Hospital error', { error }, 500)
+        return localizedApiResponse(req, res, false, 'Delete Hospital error', { error }, 500)
     }
 }
 
@@ -354,7 +434,7 @@ exports.hospitalDownloadExcel = async (req, res) => {
 //         const { latitude, longitude, typeId } = req.bodyParams;
 
 //         if (!latitude || !longitude) {
-//             return res.apiResponse(false, "Latitude and Longitude are required", {}, 400);
+//             return localizedApiResponse(req, res, false, "Latitude and Longitude are required", {}, 400);
 //         }
 
 //         const maxDistanceKm = 30;
@@ -388,10 +468,10 @@ exports.hospitalDownloadExcel = async (req, res) => {
 //         });
 
 //         const HospitalsFinal = await Promise.all(hospitalsWithDistance.map(getDepartmentWithHospital));
-//         return res.apiResponse(true, "Nearby hospitals fetched successfully", HospitalsFinal, 200);
+//         return localizedApiResponse(req, res, true, "Nearby hospitals fetched successfully", HospitalsFinal, 200);
 //     } catch (error) {
 //         console.error(error);
-//         return res.apiResponse(false, "Error fetching nearby hospitals", { error: error.message }, 500);
+//         return localizedApiResponse(req, res, false, "Error fetching nearby hospitals", { error: error.message }, 500);
 //     }
 // };
 
@@ -400,7 +480,7 @@ exports.getNearbyHospitals = async (req, res, next) => {
         const { latitude, longitude, typeId } = req.bodyParams;
 
         if (!latitude || !longitude) {
-            return res.apiResponse(false, "Latitude and Longitude are required", {}, 400);
+            return localizedApiResponse(req, res, false, "Latitude and Longitude are required", {}, 400);
         }
 
         const maxDistanceKm = 10;
@@ -440,10 +520,10 @@ exports.getNearbyHospitals = async (req, res, next) => {
 
         const HospitalsFinal = await Promise.all(hospitalsWithDistance.map(getDepartmentWithHospital));
         console.log('HospitalsFinal', HospitalsFinal)
-        return res.apiResponse(true, "Nearby hospitals fetched successfully", HospitalsFinal, 200);
+        return localizedApiResponse(req, res, true, "Nearby hospitals fetched successfully", HospitalsFinal, 200);
     } catch (error) {
         console.error(error);
-        return res.apiResponse(false, "Error fetching nearby hospitals", { error: error.message }, 500);
+        return localizedApiResponse(req, res, false, "Error fetching nearby hospitals", { error: error.message }, 500);
     }
 };
 
@@ -521,7 +601,7 @@ const bulkSafeParse = (obj, keys = []) => {
 
 const getDepartments = async (departmentIds = []) => {
     if (!Array.isArray(departmentIds) || departmentIds.length === 0) return [];
-    const matched = await HospitalDepartment.find({ id: { $in: departmentIds } }, 'id title file');
+    const matched = await HospitalDepartment.find({ id: { $in: departmentIds } }, 'id title subTitle file translations');
     return matched;
 };
 

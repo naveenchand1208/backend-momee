@@ -1,31 +1,45 @@
+const { localizedApiResponse } = require('./controllerLocalization');
 const HospitalDepartment = require('../models/hospitalDepartment')
 const moment = require('moment');
 const { uploadToCloudinary, deleteFromCloudinary } = require('../helpers/cloudinary');
 
 exports.add = async (req, res, next) => {
     try {
-        const { title, subTitle } = req.body;
+        const { title, subTitle, translations } = req.body;
         if (!title || !subTitle || !req.file) {
-            return res.apiResponse(false, 'Depatment params is missing', {}, 400);
+            return localizedApiResponse(req, res, false, 'Depatment params is missing', {}, 400);
         }
         const checkTitle = await HospitalDepartment.findOne({ title: title })
         if (checkTitle) {
-            return res.apiResponse(false, 'Name already exists', {}, 400);
+            return localizedApiResponse(req, res, false, 'Name already exists', {}, 400);
         }
         const { secure_url, public_id } = await uploadToCloudinary(req.file, 'hospitalDepartments');
         const now = moment().format('DDMMYYYYHHmmss');
         const uniqueId = `HospitalDepartment-${now}`;
+        let parsedTranslations = translations;
+        if (typeof parsedTranslations === 'string') {
+            try {
+                parsedTranslations = JSON.parse(parsedTranslations);
+            } catch (e) {
+                parsedTranslations = null;
+            }
+        }
+
         const newDept = new HospitalDepartment({
             title,
             subTitle,
+            translations: parsedTranslations || {
+                en: { title, subTitle },
+                ta: { title: '', subTitle: '' }
+            },
             file: secure_url,
             public_id: public_id,
             id: uniqueId
         });
         await newDept.save()
-        return res.apiResponse(true, "Depatment added Success", newDept, 200);
+        return localizedApiResponse(req, res, true, "Depatment added Success", newDept, 200);
     } catch (error) {
-        return res.apiResponse(false, 'Depatment Add error', { error }, 500);
+        return localizedApiResponse(req, res, false, 'Depatment Add error', { error }, 500);
     }
 }
 
@@ -78,9 +92,9 @@ exports.list = async (req, res, next) => {
             options.sort = { createdAt: -1 };
             HospitalDepartment.paginate(match, options, function (err, data) {
                 if (err) {
-                    return res.apiResponse(false, "Error while fetching lists", {}, 404);
+                    return localizedApiResponse(req, res, false, "Error while fetching lists", {}, 404);
                 }
-                return res.apiResponse(true, "Success", data, 200);
+                return localizedApiResponse(req, res, true, "Success", data, 200);
             });
         } else {
             let departments = [];
@@ -90,11 +104,11 @@ exports.list = async (req, res, next) => {
 
             departments = await query
                 .sort({ createdAt: -1 });
-            return res.apiResponse(true, "Success", { docs: departments }, 200);
+            return localizedApiResponse(req, res, true, "Success", { docs: departments }, 200);
         }
 
     } catch (error) {
-        return res.apiResponse(false, 'Get list error', {}, 500);
+        return localizedApiResponse(req, res, false, 'Get list error', {}, 500);
     }
 }
 
@@ -102,15 +116,15 @@ exports.view = async (req, res, next) => {
     try {
         var requests = req.bodyParams;
         if (!requests.id) {
-            return res.apiResponse(false, 'Id is missing', {}, 400);
+            return localizedApiResponse(req, res, false, 'Id is missing', {}, 400);
         }
         const department = await HospitalDepartment.findOne({ id: requests.id })
         if (!department) {
-            return res.apiResponse(false, 'Department not found', {}, 404);
+            return localizedApiResponse(req, res, false, 'Department not found', {}, 404);
         }
-        return res.apiResponse(true, 'Success', department, 200);
+        return localizedApiResponse(req, res, true, 'Success', department, 200);
     } catch (error) {
-        return res.apiResponse(false, 'get Department error', {}, 500)
+        return localizedApiResponse(req, res, false, 'get Department error', {}, 500)
     }
 }
 
@@ -119,11 +133,22 @@ exports.update = async (req, res, next) => {
         if (req.body) {
             const { id, public_id, fileChanged } = req.body;
             if (id === undefined || id === null) {
-                return res.apiResponse(false, 'Id is missing', {}, 400);
+                return localizedApiResponse(req, res, false, 'Id is missing', {}, 400);
             }
             const updateFields = {};
             if (req.body.title) updateFields.title = req.body.title;
             if (req.body.subTitle) updateFields.subTitle = req.body.subTitle;
+            if (req.body.translations) {
+                let parsedTranslations = req.body.translations;
+                if (typeof parsedTranslations === 'string') {
+                    try {
+                        parsedTranslations = JSON.parse(parsedTranslations);
+                    } catch (e) {
+                        parsedTranslations = null;
+                    }
+                }
+                if (parsedTranslations) updateFields.translations = parsedTranslations;
+            }
             if (req.body.status) updateFields.status = req.body.status;
             if (fileChanged && public_id) {
                 await deleteFromCloudinary(public_id);
@@ -139,15 +164,15 @@ exports.update = async (req, res, next) => {
                 { new: true }
             );
             if (!updatedDept) {
-                return res.apiResponse(false, 'Department not found', {}, 404);
+                return localizedApiResponse(req, res, false, 'Department not found', {}, 404);
             }
-            return res.apiResponse(true, 'Department updated successfully', updatedDept, 200);
+            return localizedApiResponse(req, res, true, 'Department updated successfully', updatedDept, 200);
         } else {
-            return res.apiResponse(false, 'Payload is missing', {}, 400);
+            return localizedApiResponse(req, res, false, 'Payload is missing', {}, 400);
         }
     } catch (error) {
         console.error('Update Error:', error);
-        return res.apiResponse(false, 'Error updating Department', {}, 500);
+        return localizedApiResponse(req, res, false, 'Error updating Department', {}, 500);
     }
 
 };
@@ -156,11 +181,11 @@ exports.delete = async (req, res, next) => {
     try {
         var requests = req.bodyParams;
         if (!requests.id) {
-            return res.apiResponse(false, 'Id is missing', {}, 400);
+            return localizedApiResponse(req, res, false, 'Id is missing', {}, 400);
         }
         const department = await HospitalDepartment.findOne({ id: requests.id });
         if (!department) {
-            return res.apiResponse(false, 'Department not found', {}, 404)
+            return localizedApiResponse(req, res, false, 'Department not found', {}, 404)
         }
         const result = await HospitalDepartment.deleteOne({ id: requests.id });
 
@@ -168,8 +193,8 @@ exports.delete = async (req, res, next) => {
             await deleteFromCloudinary(department.public_id);
         }
 
-        return res.apiResponse(true, 'Department deleted successfully', result, 200)
+        return localizedApiResponse(req, res, true, 'Department deleted successfully', result, 200)
     } catch (error) {
-        return res.apiResponse(false, 'Delete Department error', { error }, 500)
+        return localizedApiResponse(req, res, false, 'Delete Department error', { error }, 500)
     }
 }
