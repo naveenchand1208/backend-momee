@@ -217,11 +217,11 @@ exports.register = async (req, res, next) => {
 exports.login = async (req, res, next) => {
     try {
         var requests = req.bodyParams;
-        //to check all params
+
         if (!requests.userName || !requests.password) {
             return res.apiResponse(false, 'UserName or password is missing', {}, 400)
         }
-        //to check register user
+
         if (requests.userName != '') {
             var loginUser = await Auth.findOne({
                 $or: [
@@ -229,30 +229,75 @@ exports.login = async (req, res, next) => {
                     { "userName": requests.userName }
                 ]
             });
+
             if (!loginUser) {
                 return res.apiResponse(false, 'User not found', {}, 404)
             }
         }
-        //to compare password
+
         if (loginUser.password !== requests.password) {
             return res.apiResponse(false, 'Password is wrong', loginUser, 400)
         }
+
         if (loginUser.emailVerified) {
-            // jwt_authentication
             const token = generateToken({ userid: loginUser.id })
             loginUser.token = token;
             await loginUser.save();
+
             return res.apiResponse(true, 'Logged in success', loginUser, 200)
         } else {
             const otp = await sendOtpMail(requests.email)
             loginUser.otp = otp;
             await loginUser.save();
+
             return res.apiResponse(false, 'Please Verify Your Email', { otp: otp }, 404)
         }
     } catch (error) {
         return res.apiResponse(false, "Login Error", { error }, 500)
     }
 }
+
+// exports.login = async (req, res, next) => {
+//     try {
+//         var requests = req.bodyParams;
+//         //to check all params
+//         if (!requests.userName || !requests.password) {
+//             return res.apiResponse(false, 'UserName or password is missing', {}, 400)
+//         }
+//         //to check register user
+//         if (requests.userName != '') {
+//             var loginUser = await Auth.findOne({
+//                 $or: [
+//                     { "email": requests.userName },
+//                     { "userName": requests.userName }
+//                 ]
+//             });
+//             if (!loginUser) {
+//                 return res.apiResponse(false, 'User not found', {}, 404)
+//             }
+//         }
+//         //to compare password
+//         if (loginUser.password !== requests.password) {
+//             return res.apiResponse(false, 'Password is wrong', loginUser, 400)
+//         }
+//         if (loginUser.emailVerified) {
+//             // jwt_authentication
+//             const token = generateToken({ userid: loginUser.id })
+//             loginUser.token = token;
+//             await loginUser.save();
+//             return res.apiResponse(true, 'Logged in success', loginUser, 200)
+//         } else {
+//             const otp = await sendOtpMail(requests.email)
+//             loginUser.otp = otp;
+//             await loginUser.save();
+//             return res.apiResponse(false, 'Please Verify Your Email', { otp: otp }, 404)
+//         }
+//     } catch (error) {
+//         return res.apiResponse(false, "Login Error", { error }, 500)
+//     }
+// }
+
+
 
 // exports.getMobileOtp = async (req, res, next) => {
 //     try {
