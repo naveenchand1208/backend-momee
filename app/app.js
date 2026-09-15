@@ -61,6 +61,7 @@ const customExerciseRoutes = require('./routes/customExercise');
 const moodQuotesRoutes = require('./routes/moodQuotes');
 const babyAnimationRoutes = require('./routes/babyAnimation');
 const babyNameRoutes = require('./routes/babyName');
+const whatsappRoute = require('./routes/whatsapp');
 // const webhooksRoutes = require('./routes/webhooks');
 
 // Initialize Express app
@@ -191,7 +192,8 @@ app.use('/api/masterExercise', masterExerciseRoutes);
 app.use('/api/customExercise', customExerciseRoutes); 
 app.use('/api/moodQuotes', moodQuotesRoutes); 
 app.use('/api/babyAnimation', babyAnimationRoutes); 
-app.use('/api/babyName', babyNameRoutes); 
+app.use('/api/babyName', babyNameRoutes);
+app.use('/api/whatsapp', whatsappRoute); 
 // app.use('/api/webhooks', webhooksRoutes); 
 
 // Health check
