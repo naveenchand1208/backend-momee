@@ -239,13 +239,29 @@ exports.login = async (req, res, next) => {
             return res.apiResponse(false, 'Password is wrong', loginUser, 400)
         }
 
+        // if (loginUser.emailVerified) {
+        //     const token = generateToken({ userid: loginUser.id })
+        //     loginUser.token = token;
+        //     await loginUser.save();
+
+        //     return res.apiResponse(true, 'Logged in success', loginUser, 200)
+        // }
         if (loginUser.emailVerified) {
-            const token = generateToken({ userid: loginUser.id })
+            const token = generateToken({ userid: loginUser.id });
+
             loginUser.token = token;
             await loginUser.save();
 
-            return res.apiResponse(true, 'Logged in success', loginUser, 200)
-        } else {
+            const userData = loginUser.toObject();
+
+            userData._id = loginUser._id.toString();
+
+            delete userData.password;
+            delete userData.otp;
+
+            return res.apiResponse(true, 'Logged in success', userData, 200);
+        }      
+        else {
             const otp = await sendOtpMail(requests.email)
             loginUser.otp = otp;
             await loginUser.save();
