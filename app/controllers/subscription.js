@@ -1,3 +1,5 @@
+const { localizedApiResponse } =
+    require('./controllerLocalization');
 const Plan = require('../models/subscription')
 const Auth = require('../models/auth')
 const UserPlan = require('../models/userSubscription')
@@ -20,57 +22,246 @@ async function getPaymentMethod(userId) {
     const user = await Auth.findOne({ id: userId }).select('paymentMethod');
     return user?.paymentMethod || null;
 }
+
 exports.add = async (req, res, next) => {
+
     try {
-        const { planName, planAmount, color, durationMonths, features } = req.bodyParams;
-        if (!planName || !planAmount || !color || !durationMonths ||
-            features.length === 0) {
-            return res.apiResponse(false, 'Plan details are missing', {}, 400);
-        }
-        const checkTitle = await Plan.findOne({ planName })
-        if (checkTitle) {
-            return res.apiResponse(false, 'Plan Name already exists', {}, 400);
-        }
-        const uniqueId = `plan-${moment().format('DDMMYYYYHHmmss')}`;
-        const newPlan = new Plan({
+
+        const {
             planName,
             planAmount,
             color,
             durationMonths,
             features,
-            id: uniqueId,
-        })
-        await newPlan.save();
-        // const plansToSave = momTypes.length === 2
-        //     ? [
-        //         new Plan({
-        //             ...req.bodyParams,
-        //             id: `${uniqueId}-1`,
-        //             momTypes: momTypes.filter(item => item !== 'newMom'),
-        //             momType: 'pregMom'
-        //         }),
-        //         new Plan({
-        //             ...req.bodyParams,
-        //             id: `${uniqueId}-2`,
-        //             momTypes: momTypes.filter(item => item !== 'pregMom'),
-        //             momType: 'newMom'
-        //         })
-        //     ]
-        //     : [
-        //         new Plan({
-        //             ...req.bodyParams,
-        //             id: uniqueId,
-        //             momType: momTypes[0],
-        //         })
-        //     ];
-        // await Promise.all(plansToSave.map(plan => plan.save()));
-        return res.apiResponse(true, "Plans added successfully", newPlan, 200);
-    } catch (error) {
-        console.error(error);
-        return res.apiResponse(false, 'Add subscription error', {}, 500);
-    }
+            translations
+        } = req.bodyParams;
 
-}
+        if (
+            !planName ||
+            !planAmount ||
+            !color ||
+            !durationMonths ||
+            !Array.isArray(features) ||
+            features.length === 0
+        ) {
+
+            return localizedApiResponse(
+                req,
+                res,
+                false,
+                'Plan details are missing',
+                {},
+                400
+            );
+        }
+
+        const checkTitle =
+            await Plan.findOne({
+                planName
+            });
+
+        if (checkTitle) {
+
+            return localizedApiResponse(
+                req,
+                res,
+                false,
+                'Plan Name already exists',
+                {},
+                400
+            );
+        }
+
+        const uniqueId =
+            `plan-${moment().format(
+                'DDMMYYYYHHmmss'
+            )}`;
+
+        /*
+         * FEATURES
+         */
+
+        const normalizedFeatures =
+            features.map((feature, index) => {
+
+                return {
+
+                    ...feature,
+
+                    id:
+                        feature?.id ||
+                        index + 1,
+
+                    description:
+                        feature?.description ||
+                        feature?.translations?.en?.description ||
+                        '',
+
+                    descriptionTa:
+                        feature?.descriptionTa ||
+                        feature?.translations?.ta?.description ||
+                        '',
+
+                    translations: {
+
+                        en: {
+
+                            description:
+                                feature?.translations?.en?.description ||
+                                feature?.description ||
+                                ''
+
+                        },
+
+                        ta: {
+
+                            description:
+                                feature?.translations?.ta?.description ||
+                                feature?.descriptionTa ||
+                                ''
+
+                        }
+
+                    }
+
+                };
+
+            });
+
+        /*
+         * PLAN TRANSLATIONS
+         */
+
+        const normalizedTranslations = {
+
+            en: {
+
+                ...(translations?.en || {}),
+
+                name:
+                    translations?.en?.name ||
+                    planName ||
+                    ''
+
+            },
+
+            ta: {
+
+                ...(translations?.ta || {}),
+
+                name:
+                    translations?.ta?.name ||
+                    ''
+
+            }
+
+        };
+
+        /*
+         * CREATE PLAN
+         */
+
+        const newPlan =
+            new Plan({
+
+                planName,
+
+                planAmount,
+
+                color,
+
+                durationMonths,
+
+                features:
+                    normalizedFeatures,
+
+                translations:
+                    normalizedTranslations,
+
+                id:
+                    uniqueId
+
+            });
+
+        await newPlan.save();
+
+        return localizedApiResponse(
+            req,
+            res,
+            true,
+            "Plans added successfully",
+            newPlan,
+            200
+        );
+
+    } catch (error) {
+
+        console.error(
+            'Add subscription error:',
+            error
+        );
+
+        return localizedApiResponse(
+            req,
+            res,
+            false,
+            'Add subscription error',
+            {},
+            500
+        );
+    }
+};
+// exports.add = async (req, res, next) => {
+//     try {
+//         const { planName, planAmount, color, durationMonths, features } = req.bodyParams;
+//         if (!planName || !planAmount || !color || !durationMonths ||
+//             features.length === 0) {
+//             return res.apiResponse(false, 'Plan details are missing', {}, 400);
+//         }
+//         const checkTitle = await Plan.findOne({ planName })
+//         if (checkTitle) {
+//             return res.apiResponse(false, 'Plan Name already exists', {}, 400);
+//         }
+//         const uniqueId = `plan-${moment().format('DDMMYYYYHHmmss')}`;
+//         const newPlan = new Plan({
+//             planName,
+//             planAmount,
+//             color,
+//             durationMonths,
+//             features,
+//             id: uniqueId,
+//         })
+//         await newPlan.save();
+//         // const plansToSave = momTypes.length === 2
+//         //     ? [
+//         //         new Plan({
+//         //             ...req.bodyParams,
+//         //             id: `${uniqueId}-1`,
+//         //             momTypes: momTypes.filter(item => item !== 'newMom'),
+//         //             momType: 'pregMom'
+//         //         }),
+//         //         new Plan({
+//         //             ...req.bodyParams,
+//         //             id: `${uniqueId}-2`,
+//         //             momTypes: momTypes.filter(item => item !== 'pregMom'),
+//         //             momType: 'newMom'
+//         //         })
+//         //     ]
+//         //     : [
+//         //         new Plan({
+//         //             ...req.bodyParams,
+//         //             id: uniqueId,
+//         //             momType: momTypes[0],
+//         //         })
+//         //     ];
+//         // await Promise.all(plansToSave.map(plan => plan.save()));
+//         return res.apiResponse(true, "Plans added successfully", newPlan, 200);
+//     } catch (error) {
+//         console.error(error);
+//         return res.apiResponse(false, 'Add subscription error', {}, 500);
+//     }
+
+// }
 
 exports.list = async (req, res, next) => {
     try {
@@ -149,33 +340,321 @@ exports.view = async (req, res, next) => {
 exports.update = async (req, res, next) => {
     try {
         const requests = req.bodyParams;
-        console.log('requests', requests)
+
         if (!requests.id) {
             return res.apiResponse(false, 'Id is missing', {}, 400);
         }
-        console.log('coming')
-        const checkTitle = await Plan.findOne({ planName: requests.planName })
-        if (checkTitle && checkTitle.id !== requests.id) {
-            return res.apiResponse(false, 'Plan Name already exists', {}, 400);
+
+        // Remove id and _id from fields being updated
+        const {
+            id,
+            _id,
+            createdAt,
+            updatedAt,
+            __v,
+            ...updateFields
+        } = requests;
+
+        // Keep English + Tamil plan name
+        updateFields.translations = {
+            en: {
+                name: requests.planName || ''
+            },
+            ta: {
+                name: requests.translations?.ta?.name ||
+                    requests.planNameTa ||
+                    ''
+            }
+        };
+
+        // Normalize features
+        if (Array.isArray(requests.features)) {
+            updateFields.features = requests.features.map((feature, index) => ({
+                ...feature,
+
+                id: feature?.id || index + 1,
+
+                description:
+                    feature?.description ||
+                    feature?.translations?.en?.description ||
+                    '',
+
+                descriptionTa:
+                    feature?.descriptionTa ||
+                    feature?.translations?.ta?.description ||
+                    '',
+
+                translations: {
+                    en: {
+                        description:
+                            feature?.translations?.en?.description ||
+                            feature?.description ||
+                            ''
+                    },
+
+                    ta: {
+                        description:
+                            feature?.translations?.ta?.description ||
+                            feature?.descriptionTa ||
+                            ''
+                    }
+                }
+            }));
         }
-        console.log('coming-1')
-        const updateFields = { ...requests };
+
         console.log('Update Fields:', updateFields);
 
+        // IMPORTANT: use Plan, because that is your imported model
         const plan = await Plan.findOneAndUpdate(
-            { id: requests.id },
+            { id: id },
             updateFields,
             { new: true }
         );
+
         if (!plan) {
             return res.apiResponse(false, 'Plan not found', {}, 404);
         }
-        return res.apiResponse(true, 'Plan updated successfully', plan, 200);
+
+        return res.apiResponse(
+            true,
+            'Plan updated successfully',
+            plan,
+            200
+        );
 
     } catch (error) {
-        return res.apiResponse(false, 'Error updating  Plan', {}, 500);
+        console.error('Update subscription error:', error);
+
+        return res.apiResponse(
+            false,
+            'Error updating Plan',
+            {},
+            500
+        );
     }
 };
+
+// exports.update = async (req, res, next) => {
+
+//     try {
+
+//         const requests =
+//             req.bodyParams;
+
+//         if (!requests.id) {
+
+//             return localizedApiResponse(
+//                 req,
+//                 res,
+//                 false,
+//                 'Id is missing',
+//                 {},
+//                 400
+//             );
+//         }
+
+//         const checkTitle =
+//             await Plan.findOne({
+//                 planName:
+//                     requests.planName
+//             });
+
+//         if (
+//             checkTitle &&
+//             checkTitle.id !== requests.id
+//         ) {
+
+//             return localizedApiResponse(
+//                 req,
+//                 res,
+//                 false,
+//                 'Plan Name already exists',
+//                 {},
+//                 400
+//             );
+//         }
+
+//         const updateFields = {
+//             ...requests
+//         };
+
+//         /*
+//          * PLAN TRANSLATIONS
+//          */
+
+//         if (requests.translations) {
+
+//             updateFields.translations = {
+
+//                 en: {
+
+//                     ...(requests.translations.en || {}),
+
+//                     name:
+//                         requests.translations.en?.name ||
+//                         requests.planName ||
+//                         ''
+
+//                 },
+
+//                 ta: {
+
+//                     ...(requests.translations.ta || {}),
+
+//                     name:
+//                         requests.translations.ta?.name ||
+//                         ''
+
+//                 }
+
+//             };
+//         }
+
+//         /*
+//          * FEATURES
+//          */
+
+//         if (
+//             Array.isArray(
+//                 requests.features
+//             )
+//         ) {
+
+//             updateFields.features =
+//                 requests.features.map(
+//                     (feature, index) => {
+
+//                         return {
+
+//                             ...feature,
+
+//                             id:
+//                                 feature?.id ||
+//                                 index + 1,
+
+//                             description:
+//                                 feature?.description ||
+//                                 feature?.translations?.en?.description ||
+//                                 '',
+
+//                             descriptionTa:
+//                                 feature?.descriptionTa ||
+//                                 feature?.translations?.ta?.description ||
+//                                 '',
+
+//                             translations: {
+
+//                                 en: {
+
+//                                     description:
+//                                         feature?.translations?.en?.description ||
+//                                         feature?.description ||
+//                                         ''
+
+//                                 },
+
+//                                 ta: {
+
+//                                     description:
+//                                         feature?.translations?.ta?.description ||
+//                                         feature?.descriptionTa ||
+//                                         ''
+
+//                                 }
+
+//                             }
+
+//                         };
+
+//                     }
+//                 );
+//         }
+
+//         const plan =
+//             await Plan.findOneAndUpdate(
+
+//                 {
+//                     id:
+//                         requests.id
+//                 },
+
+//                 updateFields,
+
+//                 {
+//                     new: true
+//                 }
+
+//             );
+
+//         if (!plan) {
+
+//             return localizedApiResponse(
+//                 req,
+//                 res,
+//                 false,
+//                 'Plan not found',
+//                 {},
+//                 404
+//             );
+//         }
+
+//         return localizedApiResponse(
+//             req,
+//             res,
+//             true,
+//             'Plan updated successfully',
+//             plan,
+//             200
+//         );
+
+//     } catch (error) {
+
+//         console.error(
+//             'Update subscription error:',
+//             error
+//         );
+
+//         return localizedApiResponse(
+//             req,
+//             res,
+//             false,
+//             'Error updating Plan',
+//             {},
+//             500
+//         );
+//     }
+// };
+
+// exports.update = async (req, res, next) => {
+//     try {
+//         const requests = req.bodyParams;
+//         console.log('requests', requests)
+//         if (!requests.id) {
+//             return res.apiResponse(false, 'Id is missing', {}, 400);
+//         }
+//         console.log('coming')
+//         const checkTitle = await Plan.findOne({ planName: requests.planName })
+//         if (checkTitle && checkTitle.id !== requests.id) {
+//             return res.apiResponse(false, 'Plan Name already exists', {}, 400);
+//         }
+//         console.log('coming-1')
+//         const updateFields = { ...requests };
+//         console.log('Update Fields:', updateFields);
+
+//         const plan = await Plan.findOneAndUpdate(
+//             { id: requests.id },
+//             updateFields,
+//             { new: true }
+//         );
+//         if (!plan) {
+//             return res.apiResponse(false, 'Plan not found', {}, 404);
+//         }
+//         return res.apiResponse(true, 'Plan updated successfully', plan, 200);
+
+//     } catch (error) {
+//         return res.apiResponse(false, 'Error updating  Plan', {}, 500);
+//     }
+// };
 
 exports.delete = async (req, res, next) => {
     try {

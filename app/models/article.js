@@ -10,6 +10,13 @@ const articleSchema = new mongoose.Schema({
     banner_public_id: String,
     categoryId: String,
     description: String,
+    translations: {
+        type: mongoose.Schema.Types.Mixed,
+        default: () => ({
+            en: {},
+            ta: {}
+        })
+    },
     momType: String,
     week: String,
     month: String,

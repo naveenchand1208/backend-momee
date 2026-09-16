@@ -3,151 +3,594 @@ const CustomNotification = require('../models/customNotification')
 const Auth = require('../models/auth')
 const moment = require('moment');
 const NotificationLogs = require('../models/notificationLogs');
-const { uploadToCloudinary } = require('../helpers/cloudinary');
+//const { uploadToCloudinary } = require('../helpers/cloudinary');
+const { uploadToCloudinary, deleteFromCloudinary } = require('../helpers/cloudinary');
 const notifyUsers = require('../helpers/notifyUsers');
 
 exports.add = async (req, res, next) => {
+
     try {
-        console.log('req.body', req.body)
-        const { title, userIds, message } = req.body;
-        if (!title || !Array.isArray(userIds) || userIds.length === 0 || !message) {
-            return res.apiResponse(false, 'Notifications params are missing', {}, 400);
-        }
-        let fileUpload;
-        if (req.file) {
-            fileUpload = await uploadToCloudinary(req.file, 'CustomNotification');
+
+        console.log('================================');
+        console.log('CUSTOM NOTIFICATION ADD');
+        console.log('================================');
+
+        console.log('req.body:', req.body);
+
+        let {
+            title,
+            titleTa,
+            userIds,
+            message,
+            messageTa
+        } = req.body;
+
+        // FormData sends userIds as a string
+        if (typeof userIds === 'string') {
+            try {
+                userIds = JSON.parse(userIds);
+            } catch (error) {
+                userIds = [];
+            }
         }
 
-        const now = moment().format('DDMMYYYYHHmmss');
-        const uniqueId = `CustomNotification-${now}`;
+
+        console.log('English Title:', title);
+        console.log('Tamil Title:', titleTa);
+
+        console.log('English Message:', message);
+        console.log('Tamil Message:', messageTa);
+
+
+        // ==========================================
+        // VALIDATION
+        // ==========================================
+
+        if (
+            !title ||
+            !titleTa ||
+            !message ||
+            !messageTa ||
+            !Array.isArray(userIds) ||
+            userIds.length === 0
+        ) {
+
+            return res.apiResponse(
+                false,
+                'Notification parameters are missing',
+                {},
+                400
+            );
+        }
+
+
+        // ==========================================
+        // FILE UPLOAD
+        // ==========================================
+
+        let fileUpload = {};
+
+        if (req.file) {
+
+            fileUpload =
+                await uploadToCloudinary(
+                    req.file,
+                    'CustomNotification'
+                );
+        }
+
+
+        // ==========================================
+        // UNIQUE ID
+        // ==========================================
+
+        const now =
+            moment().format('DDMMYYYYHHmmss');
+
+        const uniqueId =
+            `CustomNotification-${now}`;
+
+
+        // ==========================================
+        // USER NOTIFICATIONS
+        // ==========================================
 
         const userNotifications = [];
 
-        // Collect all notification sending tasks
-        const tasks = userIds.map(async (userId) => {
-            try {
-                const user = await Auth.findOne({ id: userId }).select('userName deviceInfos');
 
-                if (!user) {
-                    userNotifications.push({
-                        userId,
-                        userName: null,
-                        success: false,
-                        reason: 'User not found'
-                    });
-                    return;
-                }
+        // ==========================================
+        // SEND NOTIFICATION
+        // ==========================================
 
-                const deviceInfo = user.deviceInfos?.find(info => info.logout === false);
-                const fcmToken = deviceInfo?.fcmToken;
+        const tasks = userIds.map(
+            async (userId) => {
 
-                if (!fcmToken) {
-                    userNotifications.push({
-                        userId,
-                        userName: user.userName,
-                        success: false,
-                        reason: 'FCM token not available or user logged out'
-                    });
-                    return;
-                }
+                try {
 
-                await fireBaseNotification(fcmToken, {
-                    title,
-                    body: message,
-                    image: fileUpload.secure_url,
-                    data: {
-                        type: 'custom-notifications',
-                    }
-                });
-
-                userNotifications.push({
-                    userId,
-                    userName: user.userName,
-                    success: true,
-                    reason: 'Success'
-                });
-            } catch (err) {
-                // `messaging/registration-token-not-registered` means Firebase has
-                // permanently invalidated this exact token (app uninstalled, or a
-                // reinstall over the same bundle id — e.g. the App Store build
-                // replacing a TestFlight install — mints a new token). That token
-                // will never succeed again, so clear it now instead of leaving it
-                // in place to fail identically on every future broadcast; the user
-                // just needs to reopen the app to have it replaced.
-                const isDeadToken = err.code === 'messaging/registration-token-not-registered' ||
-                    err.code === 'messaging/invalid-registration-token';
-
-                if (isDeadToken) {
-                    try {
-                        const staleUser = await Auth.findOne({ id: userId });
-                        const staleDevice = staleUser?.deviceInfos?.find(
-                            info => info.fcmToken === fcmToken
+                    const user =
+                        await Auth.findOne({
+                            id: userId
+                        }).select(
+                            'userName deviceInfos'
                         );
-                        if (staleDevice) {
-                            staleDevice.fcmToken = null;
-                            staleUser.markModified('deviceInfos');
-                            await staleUser.save();
-                        }
-                    } catch (cleanupErr) {
-                        console.error('Failed to clear stale FCM token:', cleanupErr.message);
+
+
+                    if (!user) {
+
+                        userNotifications.push({
+
+                            userId,
+
+                            userName: null,
+
+                            success: false,
+
+                            reason: 'User not found'
+
+                        });
+
+                        return;
                     }
+
+
+                    const deviceInfo =
+                        user.deviceInfos?.find(
+                            info =>
+                                info.logout === false
+                        );
+
+
+                    const fcmToken =
+                        deviceInfo?.fcmToken;
+
+
+                    if (!fcmToken) {
+
+                        userNotifications.push({
+
+                            userId,
+
+                            userName:
+                                user.userName,
+
+                            success: false,
+
+                            reason:
+                                'FCM token not available or user logged out'
+
+                        });
+
+                        return;
+                    }
+
+
+                    // ======================================
+                    // EXISTING PUSH BEHAVIOR
+                    // English notification remains same
+                    // ======================================
+
+                    await fireBaseNotification(
+                        fcmToken,
+                        {
+
+                            title,
+
+                            body: message,
+
+                            image:
+                                fileUpload?.secure_url,
+
+                            data: {
+                                type:
+                                    'custom-notifications'
+                            }
+
+                        }
+                    );
+
+
+                    userNotifications.push({
+
+                        userId,
+
+                        userName:
+                            user.userName,
+
+                        success: true,
+
+                        reason: 'Success'
+
+                    });
+
+
+                } catch (err) {
+
+
+                    const isDeadToken =
+                        err.code ===
+                        'messaging/registration-token-not-registered' ||
+
+                        err.code ===
+                        'messaging/invalid-registration-token';
+
+
+                    if (isDeadToken) {
+
+                        try {
+
+                            const staleUser =
+                                await Auth.findOne({
+                                    id: userId
+                                });
+
+
+                            const staleDevice =
+                                staleUser?.deviceInfos?.find(
+                                    info =>
+                                        info.fcmToken ===
+                                        fcmToken
+                                );
+
+
+                            if (staleDevice) {
+
+                                staleDevice.fcmToken =
+                                    null;
+
+                                staleUser.markModified(
+                                    'deviceInfos'
+                                );
+
+                                await staleUser.save();
+
+                            }
+
+                        } catch (cleanupErr) {
+
+                            console.error(
+                                'Failed to clear stale FCM token:',
+                                cleanupErr.message
+                            );
+                        }
+                    }
+
+
+                    userNotifications.push({
+
+                        userId,
+
+                        userName: null,
+
+                        success: false,
+
+                        reason:
+                            isDeadToken
+                                ? 'Device token expired — user needs to reopen the app'
+                                : (
+                                    err.message ||
+                                    'Unknown error while sending notification'
+                                )
+
+                    });
+
                 }
 
-                userNotifications.push({
-                    userId,
-                    userName: null,
-                    success: false,
-                    reason: isDeadToken
-                        ? 'Device token expired — user needs to reopen the app'
-                        : (err.message || 'Unknown error while sending notification')
-                });
             }
-        });
+        );
 
-        // Run all tasks, even if some fail
+
         await Promise.allSettled(tasks);
 
-        // Save notification in DB
-        const newNotification = new CustomNotification({
-            title,
-            userIds,
-            message,
-            file: fileUpload.secure_url,
-            public_id: fileUpload.public_id,
-            id: uniqueId,
-            userNotifications
-        });
+
+        // ==========================================
+        // SAVE NOTIFICATION
+        // ==========================================
+
+        const newNotification =
+            new CustomNotification({
+
+                id: uniqueId,
+
+                // Existing English fields
+                title: title,
+
+                message: message,
+
+                userIds: userIds,
+
+                userNotifications:
+                    userNotifications,
+
+                file:
+                    fileUpload?.secure_url || '',
+
+                public_id:
+                    fileUpload?.public_id || '',
+
+
+                // ======================================
+                // BOTH LANGUAGES
+                // ======================================
+
+                translations: {
+
+                    en: {
+                        title: title,
+                        message: message
+                    },
+
+                    ta: {
+                        title: titleTa,
+                        message: messageTa
+                    }
+
+                }
+
+            });
+
+
+        console.log(
+            'BEFORE SAVE:',
+            JSON.stringify(
+                newNotification.toObject(),
+                null,
+                2
+            )
+        );
+
+
         await newNotification.save();
 
-        const logId = `NotificationLog-${now}`;
-        const newClickCount = new NotificationLogs({
-            id: logId,
-            title: title,
-            message: message,
-            file: fileUpload.secure_url,
-            public_id: fileUpload.public_id,
-        })
+
+        console.log(
+            'AFTER SAVE:',
+            JSON.stringify(
+                newNotification.toObject(),
+                null,
+                2
+            )
+        );
+
+
+        // ==========================================
+        // NOTIFICATION LOG
+        // ==========================================
+
+        const logId =
+            `NotificationLog-${now}`;
+
+
+        const newClickCount =
+            new NotificationLogs({
+
+                id: logId,
+
+                title: title,
+
+                message: message,
+
+                file:
+                    fileUpload?.secure_url || '',
+
+                public_id:
+                    fileUpload?.public_id || ''
+
+            });
+
+
         await newClickCount.save();
 
-        // Persist one per-user notification row so it shows up in the
-        // app's Notifications screen (/api/notification/list), independent
-        // of whether the FCM push above actually reached the device.
+
+        // ==========================================
+        // PER USER NOTIFICATION
+        // ==========================================
+
         try {
-            await notifyUsers(userIds, { title, message, type: 'custom_notification' });
+
+            await notifyUsers(
+                userIds,
+                {
+                    title,
+                    titleTa,
+                    message,
+                    messageTa,
+                    type: 'custom_notification'
+                }
+            );
+
         } catch (err) {
-            console.error("Failed to persist per-user notifications:", err);
+
+            console.error(
+                "Failed to persist per-user notifications:",
+                err
+            );
+
         }
 
-        return res.apiResponse(true, "Notifications processed", {
-            notification: newNotification,
-            userNotifications
-        }, 200);
+
+        // ==========================================
+        // RESPONSE
+        // ==========================================
+
+        return res.apiResponse(
+            true,
+            "Notifications processed",
+            {
+                notification:
+                    newNotification,
+
+                userNotifications:
+                    userNotifications
+
+            },
+            200
+        );
+
 
     } catch (error) {
-        console.error("Notification Send Error:", error);
-        return res.apiResponse(false, 'Notifications send error', {}, 500);
+
+        console.error(
+            "Notification Send Error:",
+            error
+        );
+
+
+        return res.apiResponse(
+            false,
+            'Notifications send error',
+            {
+                error:
+                    error.message
+            },
+            500
+        );
+
     }
+
 };
+
+// exports.add = async (req, res, next) => {
+//     try {
+//         console.log('req.body', req.body)
+//         const { title, userIds, message } = req.body;
+//         if (!title || !Array.isArray(userIds) || userIds.length === 0 || !message) {
+//             return res.apiResponse(false, 'Notifications params are missing', {}, 400);
+//         }
+//         let fileUpload;
+//         if (req.file) {
+//             fileUpload = await uploadToCloudinary(req.file, 'CustomNotification');
+//         }
+
+//         const now = moment().format('DDMMYYYYHHmmss');
+//         const uniqueId = `CustomNotification-${now}`;
+
+//         const userNotifications = [];
+
+//         // Collect all notification sending tasks
+//         const tasks = userIds.map(async (userId) => {
+//             try {
+//                 const user = await Auth.findOne({ id: userId }).select('userName deviceInfos');
+
+//                 if (!user) {
+//                     userNotifications.push({
+//                         userId,
+//                         userName: null,
+//                         success: false,
+//                         reason: 'User not found'
+//                     });
+//                     return;
+//                 }
+
+//                 const deviceInfo = user.deviceInfos?.find(info => info.logout === false);
+//                 const fcmToken = deviceInfo?.fcmToken;
+
+//                 if (!fcmToken) {
+//                     userNotifications.push({
+//                         userId,
+//                         userName: user.userName,
+//                         success: false,
+//                         reason: 'FCM token not available or user logged out'
+//                     });
+//                     return;
+//                 }
+
+//                 await fireBaseNotification(fcmToken, {
+//                     title,
+//                     body: message,
+//                     image: fileUpload.secure_url,
+//                     data: {
+//                         type: 'custom-notifications',
+//                     }
+//                 });
+
+//                 userNotifications.push({
+//                     userId,
+//                     userName: user.userName,
+//                     success: true,
+//                     reason: 'Success'
+//                 });
+//             } catch (err) {
+//                 // `messaging/registration-token-not-registered` means Firebase has
+//                 // permanently invalidated this exact token (app uninstalled, or a
+//                 // reinstall over the same bundle id — e.g. the App Store build
+//                 // replacing a TestFlight install — mints a new token). That token
+//                 // will never succeed again, so clear it now instead of leaving it
+//                 // in place to fail identically on every future broadcast; the user
+//                 // just needs to reopen the app to have it replaced.
+//                 const isDeadToken = err.code === 'messaging/registration-token-not-registered' ||
+//                     err.code === 'messaging/invalid-registration-token';
+
+//                 if (isDeadToken) {
+//                     try {
+//                         const staleUser = await Auth.findOne({ id: userId });
+//                         const staleDevice = staleUser?.deviceInfos?.find(
+//                             info => info.fcmToken === fcmToken
+//                         );
+//                         if (staleDevice) {
+//                             staleDevice.fcmToken = null;
+//                             staleUser.markModified('deviceInfos');
+//                             await staleUser.save();
+//                         }
+//                     } catch (cleanupErr) {
+//                         console.error('Failed to clear stale FCM token:', cleanupErr.message);
+//                     }
+//                 }
+
+//                 userNotifications.push({
+//                     userId,
+//                     userName: null,
+//                     success: false,
+//                     reason: isDeadToken
+//                         ? 'Device token expired — user needs to reopen the app'
+//                         : (err.message || 'Unknown error while sending notification')
+//                 });
+//             }
+//         });
+
+//         // Run all tasks, even if some fail
+//         await Promise.allSettled(tasks);
+
+//         // Save notification in DB
+//         const newNotification = new CustomNotification({
+//             title,
+//             userIds,
+//             message,
+//             file: fileUpload.secure_url,
+//             public_id: fileUpload.public_id,
+//             id: uniqueId,
+//             userNotifications
+//         });
+//         await newNotification.save();
+
+//         const logId = `NotificationLog-${now}`;
+//         const newClickCount = new NotificationLogs({
+//             id: logId,
+//             title: title,
+//             message: message,
+//             file: fileUpload.secure_url,
+//             public_id: fileUpload.public_id,
+//         })
+//         await newClickCount.save();
+
+//         // Persist one per-user notification row so it shows up in the
+//         // app's Notifications screen (/api/notification/list), independent
+//         // of whether the FCM push above actually reached the device.
+//         try {
+//             await notifyUsers(userIds, { title, message, type: 'custom_notification' });
+//         } catch (err) {
+//             console.error("Failed to persist per-user notifications:", err);
+//         }
+
+//         return res.apiResponse(true, "Notifications processed", {
+//             notification: newNotification,
+//             userNotifications
+//         }, 200);
+
+//     } catch (error) {
+//         console.error("Notification Send Error:", error);
+//         return res.apiResponse(false, 'Notifications send error', {}, 500);
+//     }
+// };
 
 exports.list = async (req, res, next) => {
     try {

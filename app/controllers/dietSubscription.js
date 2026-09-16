@@ -46,7 +46,7 @@ async function getPaymentMethod(userId) {
 exports.add = async (req, res, next) => {
     try {
         console.log('req.bodyParams', req.bodyParams)
-        const { planName, planAmount, durationMonths, deviceType } = req.bodyParams;
+        const { planName, planAmount, durationMonths, deviceType, translations } = req.bodyParams;
         if (!planName || !planAmount || !durationMonths) {
             return res.apiResponse(false, 'Plan details are missing', {}, 400);
         }
@@ -62,6 +62,14 @@ exports.add = async (req, res, next) => {
             planAmount,
             durationMonths,
             deviceType: req.bodyParams.deviceType || 'android',
+            translations: {
+                en: {
+                    name: planName
+                },
+                ta: {
+                    name: translations?.ta?.name || ''
+                }
+            },
         })
         await newDietPlan.save();
         return res.apiResponse(true, "Plans added successfully", newDietPlan, 200);
@@ -156,7 +164,15 @@ exports.update = async (req, res, next) => {
         if (!requests.id) {
             return res.apiResponse(false, 'Id is missing', {}, 400);
         }
-        const updateFields = { ...requests };
+        const updateFields = { ...requests, translations: {
+                en: {
+                    name: requests.planName || ''
+                },
+                ta: {
+                    name: requests.translations?.ta?.name || ''
+                }
+            }
+        };
         console.log('Update Fields:', updateFields);
 
         const plan = await DietPlan.findOneAndUpdate(

@@ -1,27 +1,41 @@
+const { localizedApiResponse } = require('./controllerLocalization');
 const HospitalType = require('../models/hospitalType')
 const moment = require('moment');
 
 exports.add = async (req, res, next) => {
     try {
-        const { name, status } = req.bodyParams;
+        const { name, status, translations } = req.bodyParams;
         if (!name) {
-            return res.apiResponse(false, 'Name is missing', {}, 400);
+            return localizedApiResponse(req, res, false, 'Name is missing', {}, 400);
         }
         const checkTitle = await HospitalType.findOne({ name: name })
         if (checkTitle) {
-            return res.apiResponse(false, 'Name already exists', {}, 400);
+            return localizedApiResponse(req, res, false, 'Name already exists', {}, 400);
         }
         const uniqueId = `HospitalType-${moment().format('DDMMYYYYHHmmss')}`;
+        let parsedTranslations = translations;
+        if (typeof parsedTranslations === 'string') {
+            try {
+                parsedTranslations = JSON.parse(parsedTranslations);
+            } catch (e) {
+                parsedTranslations = null;
+            }
+        }
+
         const newType = new HospitalType({
             name,
             status,
+            translations: parsedTranslations || {
+                en: { name },
+                ta: { name: '' }
+            },
             id: uniqueId,
         })
         await newType.save()
-        return res.apiResponse(true, "Type added Success", newType, 200);
+        return localizedApiResponse(req, res, true, "Type added Success", newType, 200);
     } catch (error) {
         console.error("Add Type Error:", error);
-        return res.apiResponse(false, 'Type Add error', { error }, 500);
+        return localizedApiResponse(req, res, false, 'Type Add error', { error }, 500);
     }
 }
 
@@ -71,9 +85,9 @@ exports.list = async (req, res, next) => {
             options.sort = { createdAt: -1 };
             HospitalType.paginate(match, options, function (err, data) {
                 if (err) {
-                    return res.apiResponse(false, "Error while fetching lists", {}, 404);
+                    return localizedApiResponse(req, res, false, "Error while fetching lists", {}, 404);
                 }
-                return res.apiResponse(true, "Success", data, 200);
+                return localizedApiResponse(req, res, true, "Success", data, 200);
             });
         } else {
             let types = [];
@@ -82,11 +96,11 @@ exports.list = async (req, res, next) => {
             } else {
                 types = await HospitalType.find(match);
             }
-            return res.apiResponse(true, "Success", { docs: types }, 200);
+            return localizedApiResponse(req, res, true, "Success", { docs: types }, 200);
         }
 
     } catch (error) {
-        return res.apiResponse(false, 'Get list error', {}, 500);
+        return localizedApiResponse(req, res, false, 'Get list error', {}, 500);
     }
 }
 
@@ -94,43 +108,54 @@ exports.view = async (req, res, next) => {
     try {
         var requests = req.bodyParams;
         if (!requests.id) {
-            return res.apiResponse(false, 'Id is missing', {}, 400);
+            return localizedApiResponse(req, res, false, 'Id is missing', {}, 400);
         }
         const type = await HospitalType.findOne({ id: requests.id })
         if (!type) {
-            return res.apiResponse(false, 'Type not found', {}, 404);
+            return localizedApiResponse(req, res, false, 'Type not found', {}, 404);
         }
-        return res.apiResponse(true, 'Success', type, 200);
+        return localizedApiResponse(req, res, true, 'Success', type, 200);
     } catch (error) {
-        return res.apiResponse(false, 'get Type error', {}, 500)
+        return localizedApiResponse(req, res, false, 'get Type error', {}, 500)
     }
 }
 
 exports.update = async (req, res, next) => {
     try {
         if (req.body) {
-            const { id, name } = req.bodyParams;
+            const { id, name, translations } = req.bodyParams;
             if (id === undefined || id === null) {
-                return res.apiResponse(false, 'Id is missing', {}, 400);
+                return localizedApiResponse(req, res, false, 'Id is missing', {}, 400);
             }
             const updateFields = {};
             if (req.bodyParams.name) updateFields.name = req.bodyParams.name;
             if (req.bodyParams.status) updateFields.status = req.bodyParams.status;
+            if (req.bodyParams.translations) {
+                let parsedTranslations = req.bodyParams.translations;
+                if (typeof parsedTranslations === 'string') {
+                    try {
+                        parsedTranslations = JSON.parse(parsedTranslations);
+                    } catch (e) {
+                        parsedTranslations = null;
+                    }
+                }
+                if (parsedTranslations) updateFields.translations = parsedTranslations;
+            }
             const updatedType = await HospitalType.findOneAndUpdate(
                 { id },
                 { $set: updateFields },
                 { new: true }
             );
             if (!updatedType) {
-                return res.apiResponse(false, 'Type not found', {}, 404);
+                return localizedApiResponse(req, res, false, 'Type not found', {}, 404);
             }
-            return res.apiResponse(true, 'Type updated successfully', updatedType, 200);
+            return localizedApiResponse(req, res, true, 'Type updated successfully', updatedType, 200);
         } else {
-            return res.apiResponse(false, 'Payload is missing', {}, 400);
+            return localizedApiResponse(req, res, false, 'Payload is missing', {}, 400);
         }
     } catch (error) {
         console.error('Update Error:', error);
-        return res.apiResponse(false, 'Error updating Type', { error }, 500);
+        return localizedApiResponse(req, res, false, 'Error updating Type', { error }, 500);
     }
 
 };
@@ -139,14 +164,14 @@ exports.delete = async (req, res, next) => {
     try {
         var requests = req.bodyParams;
         if (!requests.id) {
-            return res.apiResponse(false, 'Id is missing', {}, 400);
+            return localizedApiResponse(req, res, false, 'Id is missing', {}, 400);
         }
         const result = await HospitalType.deleteOne({ id: requests.id });
         if (result.deletedCount === 0) {
-            return res.apiResponse(false, 'Type not found', {}, 404)
+            return localizedApiResponse(req, res, false, 'Type not found', {}, 404)
         }
-        return res.apiResponse(true, 'Type deleted successfully', result, 200)
+        return localizedApiResponse(req, res, true, 'Type deleted successfully', result, 200)
     } catch (error) {
-        return res.apiResponse(false, 'Delete Type error', { error }, 500)
+        return localizedApiResponse(req, res, false, 'Delete Type error', { error }, 500)
     }
 }

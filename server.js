@@ -53,6 +53,7 @@
 
 require('./app/config/env'); // Load .env first
 
+const languageMiddleware = require('./app/middleware/language');
 const http = require('http');
 const app = require('./app/app');
 // console.log('process.env', process.env)
@@ -60,6 +61,7 @@ const port = process.env.HTTP_PORT || 3000;
 const host = process.env.HTTP_HOST || 'localhost';
 
 const server = http.createServer(app);
+app.use(languageMiddleware);
 
 // ⬅️ Pass `app` as second argument so `io` can be attached to it
 require('./app/socket')(server, app);

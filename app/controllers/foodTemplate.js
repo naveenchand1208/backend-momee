@@ -4,29 +4,135 @@ const { uploadToCloudinary, deleteFromCloudinary } = require('../helpers/cloudin
 
 exports.add = async (req, res, next) => {
     try {
-        const { name } = req.body;
-        if (!name || !req.file) {
-            return res.apiResponse(false, 'Template params is missing', {}, 400);
-        }
-        const checkTitle = await FoodTemplate.findOne({ name: name })
-        if (checkTitle) {
-            return res.apiResponse(false, 'Title already exists', {}, 400);
-        }
-        const { secure_url, public_id } = await uploadToCloudinary(req.file, 'foodTemplates');
-        const uniqueId = `FoodTemplate-${moment().format('DDMMYYYYHHmmss')}`;
-        const newTemplate = new FoodTemplate({
+
+        const {
             name,
-            file: secure_url,
-            public_id: public_id,
-            id: uniqueId,
+            nameTa
+        } = req.body;
+
+        console.log('================ FOOD TEMPLATE ADD ================');
+        console.log('ENGLISH NAME:', name);
+        console.log('TAMIL NAME:', nameTa);
+        console.log('FILE:', req.file);
+
+        if (!name || !nameTa || !req.file) {
+            return res.apiResponse(
+                false,
+                'Template params is missing',
+                {},
+                400
+            );
+        }
+
+        const checkTitle = await FoodTemplate.findOne({
+            name: name
         });
+
+        if (checkTitle) {
+            return res.apiResponse(
+                false,
+                'Title already exists',
+                {},
+                400
+            );
+        }
+
+        const {
+            secure_url,
+            public_id
+        } = await uploadToCloudinary(
+            req.file,
+            'foodTemplates'
+        );
+
+        const uniqueId =
+            `FoodTemplate-${moment().format('DDMMYYYYHHmmss')}`;
+
+        const translations = {
+            en: {
+                name: name
+            },
+            ta: {
+                name: nameTa
+            }
+        };
+
+        console.log('TRANSLATIONS TO SAVE:', translations);
+
+        const newTemplate = new FoodTemplate({
+
+            name: name,
+
+            translations: translations,
+
+            file: secure_url,
+
+            public_id: public_id,
+
+            id: uniqueId,
+
+        });
+
+        console.log(
+            'BEFORE SAVE:',
+            newTemplate.toObject()
+        );
+
         await newTemplate.save();
-        return res.apiResponse(true, "Template added Success", newTemplate, 200);
+
+        console.log(
+            'AFTER SAVE:',
+            newTemplate.toObject()
+        );
+
+        return res.apiResponse(
+            true,
+            "Template added Success",
+            newTemplate,
+            200
+        );
+
     } catch (error) {
-        console.error("Add Template Error:", error);
-        return res.apiResponse(false, 'Template Add error', { error }, 500);
+
+        console.error(
+            "Add Template Error:",
+            error
+        );
+
+        return res.apiResponse(
+            false,
+            'Template Add error',
+            { error },
+            500
+        );
     }
-}
+};
+
+// exports.add = async (req, res, next) => {
+//     try {
+//         const { name } = req.body;
+//         if (!name || !req.file) {
+//             return res.apiResponse(false, 'Template params is missing', {}, 400);
+//         }
+//         const checkTitle = await FoodTemplate.findOne({ name: name })
+//         if (checkTitle) {
+//             return res.apiResponse(false, 'Title already exists', {}, 400);
+//         }
+//         const { secure_url, public_id } = await uploadToCloudinary(req.file, 'foodTemplates');
+//         const uniqueId = `FoodTemplate-${moment().format('DDMMYYYYHHmmss')}`;
+//         const newTemplate = new FoodTemplate({
+//             name,
+//             file: secure_url,
+//             public_id: public_id,
+//             id: uniqueId,
+//         });
+//         await newTemplate.save();
+//         return res.apiResponse(true, "Template added Success", newTemplate, 200);
+//     } catch (error) {
+//         console.error("Add Template Error:", error);
+//         return res.apiResponse(false, 'Template Add error', { error }, 500);
+//     }
+// }
 
 exports.list = async (req, res, next) => {
     try {
@@ -94,63 +200,274 @@ exports.list = async (req, res, next) => {
 
 exports.view = async (req, res, next) => {
     try {
-        var requests = req.bodyParams;
+
+        const requests = req.bodyParams;
+
         if (!requests.id) {
-            return res.apiResponse(false, 'Id is missing', {}, 400);
+            return res.apiResponse(
+                false,
+                'Id is missing',
+                {},
+                400
+            );
         }
-        const template = await FoodTemplate.findOne({ id: requests.id })
+
+        const template =
+            await FoodTemplate
+                .findOne({ id: requests.id })
+                .lean();
+
         if (!template) {
-            return res.apiResponse(false, 'Template not found', {}, 404);
+            return res.apiResponse(
+                false,
+                'Template not found',
+                {},
+                404
+            );
         }
-        return res.apiResponse(true, 'Success', template, 200);
+
+        // Admin needs both English + Tamil
+        if (requests.admin === true) {
+            template.__skipLocalization = true;
+        }
+
+        return res.apiResponse(
+            true,
+            'Success',
+            template,
+            200
+        );
+
     } catch (error) {
-        return res.apiResponse(false, 'get Template error', {}, 500)
+
+        console.error(
+            'Get Template Error:',
+            error
+        );
+
+        return res.apiResponse(
+            false,
+            'get Template error',
+            {},
+            500
+        );
     }
-}
+};
+// exports.view = async (req, res, next) => {
+//     try {
+//         var requests = req.bodyParams;
+//         if (!requests.id) {
+//             return res.apiResponse(false, 'Id is missing', {}, 400);
+//         }
+//         const template = await FoodTemplate.findOne({ id: requests.id })
+//         if (!template) {
+//             return res.apiResponse(false, 'Template not found', {}, 404);
+//         }
+//         return res.apiResponse(true, 'Success', template, 200);
+//     } catch (error) {
+//         return res.apiResponse(false, 'get Template error', {}, 500)
+//     }
+// }
 
 exports.update = async (req, res, next) => {
     try {
+
         if (req.body) {
+
             const body = Object(req.body);
-            const { id, public_id, fileChanged } = body;
+
+            const {
+                id,
+                public_id,
+                fileChanged,
+                name,
+                nameTa
+            } = body;
+
             if (id === undefined || id === null) {
-                return res.apiResponse(false, 'Id is missing', {}, 400);
+                return res.apiResponse(
+                    false,
+                    'Id is missing',
+                    {},
+                    400
+                );
             }
+
+            const existingTemplate =
+                await FoodTemplate.findOne({ id });
+
+            if (!existingTemplate) {
+                return res.apiResponse(
+                    false,
+                    'Template not found',
+                    {},
+                    404
+                );
+            }
+
             const updateFields = {};
-            if (req.body.name) {
-                const checkTitle = await FoodTemplate.findOne({ name: req.body.name })
-                if (checkTitle && checkTitle.id !== id) {
-                    return res.apiResponse(false, 'Title already exists', {}, 400);
+
+            // English Name
+            if (name) {
+
+                const checkTitle =
+                    await FoodTemplate.findOne({
+                        name: name
+                    });
+
+                if (
+                    checkTitle &&
+                    checkTitle.id !== id
+                ) {
+                    return res.apiResponse(
+                        false,
+                        'Title already exists',
+                        {},
+                        400
+                    );
                 }
-                updateFields.name = req.body.name;
+
+                updateFields.name = name;
             }
-            if (req.body.status) updateFields.status = req.body.status;
+
+            // Tamil + English translations
+            updateFields.translations = {
+
+                en: {
+                    name:
+                        name ||
+                        existingTemplate?.translations?.en?.name ||
+                        existingTemplate?.name ||
+                        ''
+                },
+
+                ta: {
+                    name:
+                        nameTa ||
+                        existingTemplate?.translations?.ta?.name ||
+                        ''
+                }
+
+            };
+
+            // Status
+            if (req.body.status) {
+                updateFields.status = req.body.status;
+            }
+
+            // File
             if (fileChanged && public_id) {
+
                 await deleteFromCloudinary(public_id);
+
                 if (req.file) {
-                    const { secure_url, public_id } = await uploadToCloudinary(req.file, 'foodTemplates');
+
+                    const {
+                        secure_url,
+                        public_id
+                    } = await uploadToCloudinary(
+                        req.file,
+                        'foodTemplates'
+                    );
+
                     updateFields.file = secure_url;
                     updateFields.public_id = public_id;
                 }
             }
-            const updatedTeplate = await FoodTemplate.findOneAndUpdate(
-                { id },
-                { $set: updateFields },
-                { new: true }
-            );
-            if (!updatedTeplate) {
-                return res.apiResponse(false, 'Template not found', {}, 404);
-            }
-            return res.apiResponse(true, 'Template updated successfully', updatedTeplate, 200);
-        } else {
-            return res.apiResponse(false, 'Payload is missing', {}, 400);
-        }
-    } catch (error) {
-        console.error('Update Error:', error);
-        return res.apiResponse(false, 'Error updating Template', {}, 500);
-    }
 
+            const updatedTemplate =
+                await FoodTemplate.findOneAndUpdate(
+                    { id },
+                    {
+                        $set: updateFields
+                    },
+                    {
+                        new: true
+                    }
+                );
+
+            if (!updatedTemplate) {
+                return res.apiResponse(
+                    false,
+                    'Template not found',
+                    {},
+                    404
+                );
+            }
+
+            return res.apiResponse(
+                true,
+                'Template updated successfully',
+                updatedTemplate,
+                200
+            );
+
+        } else {
+
+            return res.apiResponse(
+                false,
+                'Payload is missing',
+                {},
+                400
+            );
+        }
+
+    } catch (error) {
+
+        console.error('Update Error:', error);
+
+        return res.apiResponse(
+            false,
+            'Error updating Template',
+            {},
+            500
+        );
+    }
 };
+
+// exports.update = async (req, res, next) => {
+//     try {
+//         if (req.body) {
+//             const body = Object(req.body);
+//             const { id, public_id, fileChanged } = body;
+//             if (id === undefined || id === null) {
+//                 return res.apiResponse(false, 'Id is missing', {}, 400);
+//             }
+//             const updateFields = {};
+//             if (req.body.name) {
+//                 const checkTitle = await FoodTemplate.findOne({ name: req.body.name })
+//                 if (checkTitle && checkTitle.id !== id) {
+//                     return res.apiResponse(false, 'Title already exists', {}, 400);
+//                 }
+//                 updateFields.name = req.body.name;
+//             }
+//             if (req.body.status) updateFields.status = req.body.status;
+//             if (fileChanged && public_id) {
+//                 await deleteFromCloudinary(public_id);
+//                 if (req.file) {
+//                     const { secure_url, public_id } = await uploadToCloudinary(req.file, 'foodTemplates');
+//                     updateFields.file = secure_url;
+//                     updateFields.public_id = public_id;
+//                 }
+//             }
+//             const updatedTeplate = await FoodTemplate.findOneAndUpdate(
+//                 { id },
+//                 { $set: updateFields },
+//                 { new: true }
+//             );
+//             if (!updatedTeplate) {
+//                 return res.apiResponse(false, 'Template not found', {}, 404);
+//             }
+//             return res.apiResponse(true, 'Template updated successfully', updatedTeplate, 200);
+//         } else {
+//             return res.apiResponse(false, 'Payload is missing', {}, 400);
+//         }
+//     } catch (error) {
+//         console.error('Update Error:', error);
+//         return res.apiResponse(false, 'Error updating Template', {}, 500);
+//     }
+
+// };
 
 exports.delete = async (req, res, next) => {
     try {

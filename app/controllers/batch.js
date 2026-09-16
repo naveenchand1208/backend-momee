@@ -4,38 +4,168 @@ const { uploadToCloudinary, deleteFromCloudinary } = require('../helpers/cloudin
 
 exports.add = async (req, res, next) => {
     try {
-        const { title, momType, week, month } = req.body;
-        if (!title || !momType || !req.file) {
-            return res.apiResponse(false, 'Batch params is missing', {}, 400);
-        }
-        const checkTitle = await Batch.findOne({ title: title })
-        if (checkTitle) {
-            return res.apiResponse(false, 'Title already exists', {}, 400);
-        }
-        if (momType === 'pregMom' && !week) {
-            return res.apiResponse(false, 'Week is required', {}, 400);
-        }
-        if (momType === 'newMom' && !month) {
-            return res.apiResponse(false, 'Month is required', {}, 400);
-        }
-        const { secure_url, public_id } = await uploadToCloudinary(req.file, 'batch');
-        const uniqueId = `Batch-${moment().format('DDMMYYYYHHmmss')}`;
-        const newBatch = new Batch({
+        console.log("========== BATCH ADD ==========");
+        console.log("REQ BODY:", req.body);
+
+        const {
             title,
+            titleTa,
             momType,
-            file: secure_url,
-            public_id: public_id,
-            id: uniqueId,
             week,
-            month,
+            month
+        } = req.body;
+
+        console.log("English Title:", title);
+        console.log("Tamil Title:", titleTa);
+        console.log("Mom Type:", momType);
+        console.log("Week:", week);
+        console.log("Month:", month);
+
+        if (!title || !titleTa || !momType || !req.file) {
+            return res.apiResponse(
+                false,
+                'Batch params is missing',
+                {},
+                400
+            );
+        }
+
+        const checkTitle = await Batch.findOne({
+            title: title
         });
+
+        if (checkTitle) {
+            return res.apiResponse(
+                false,
+                'Title already exists',
+                {},
+                400
+            );
+        }
+
+        if (momType === 'pregMom' && !week) {
+            return res.apiResponse(
+                false,
+                'Week is required',
+                {},
+                400
+            );
+        }
+
+        if (momType === 'newMom' && !month) {
+            return res.apiResponse(
+                false,
+                'Month is required',
+                {},
+                400
+            );
+        }
+
+        const {
+            secure_url,
+            public_id
+        } = await uploadToCloudinary(
+            req.file,
+            'batch'
+        );
+
+        const uniqueId =
+            `Batch-${moment().format('DDMMYYYYHHmmss')}`;
+
+        const newBatch = new Batch({
+            id: uniqueId,
+
+            title: title,
+
+            momType: momType,
+
+            file: secure_url,
+
+            public_id: public_id,
+
+            week: week,
+
+            month: month,
+
+            translations: {
+                en: {
+                    title: title
+                },
+                ta: {
+                    title: titleTa
+                }
+            }
+        });
+
+        console.log(
+            "TRANSLATIONS BEFORE SAVE:",
+            newBatch.translations
+        );
+
         await newBatch.save();
-        return res.apiResponse(true, "Batch added Success", newBatch, 200);
+
+        console.log(
+            "TRANSLATIONS AFTER SAVE:",
+            newBatch.translations
+        );
+
+        return res.apiResponse(
+            true,
+            "Batch added Success",
+            newBatch,
+            200
+        );
+
     } catch (error) {
-        console.error("Add Batch Error:", error);
-        return res.apiResponse(false, 'Batch Add error', { error }, 500);
+
+        console.error(
+            "Add Batch Error:",
+            error
+        );
+
+        return res.apiResponse(
+            false,
+            'Batch Add error',
+            { error },
+            500
+        );
     }
-}
+};
+
+// exports.add = async (req, res, next) => {
+//     try {
+//         const { title, momType, week, month } = req.body;
+//         if (!title || !momType || !req.file) {
+//             return res.apiResponse(false, 'Batch params is missing', {}, 400);
+//         }
+//         const checkTitle = await Batch.findOne({ title: title })
+//         if (checkTitle) {
+//             return res.apiResponse(false, 'Title already exists', {}, 400);
+//         }
+//         if (momType === 'pregMom' && !week) {
+//             return res.apiResponse(false, 'Week is required', {}, 400);
+//         }
+//         if (momType === 'newMom' && !month) {
+//             return res.apiResponse(false, 'Month is required', {}, 400);
+//         }
+//         const { secure_url, public_id } = await uploadToCloudinary(req.file, 'batch');
+//         const uniqueId = `Batch-${moment().format('DDMMYYYYHHmmss')}`;
+//         const newBatch = new Batch({
+//             title,
+//             momType,
+//             file: secure_url,
+//             public_id: public_id,
+//             id: uniqueId,
+//             week,
+//             month,
+//         });
+//         await newBatch.save();
+//         return res.apiResponse(true, "Batch added Success", newBatch, 200);
+//     } catch (error) {
+//         console.error("Add Batch Error:", error);
+//         return res.apiResponse(false, 'Batch Add error', { error }, 500);
+//     }
+// }
 
 exports.list = async (req, res, next) => {
     try {
@@ -131,43 +261,188 @@ exports.view = async (req, res, next) => {
 
 exports.update = async (req, res, next) => {
     try {
-        if (req.body) {
-            const body = Object(req.body);
-            const { id, public_id, fileChanged } = body;
-            if (id === undefined || id === null) {
-                return res.apiResponse(false, 'Id is missing', {}, 400);
-            }
-            const updateFields = {};
-            if (req.body.title) updateFields.title = req.body.title;
-            if (!!req.body.momType) updateFields.momType = req.body.momType;
-            if (!!req.body.week) updateFields.week = req.body.week;
-            if (req.body.status) updateFields.status = req.body.status;
-            if (fileChanged && public_id) {
-                await deleteFromCloudinary(public_id);
-                if (req.file) {
-                    const { secure_url, public_id } = await uploadToCloudinary(req.file, 'batch');
-                    updateFields.file = secure_url;
-                    updateFields.public_id = public_id;
-                }
-            }
-            const updatedBatch = await Batch.findOneAndUpdate(
-                { id },
-                { $set: updateFields },
-                { new: true }
-            );
-            if (!updatedBatch) {
-                return res.apiResponse(false, 'Batch not found', {}, 404);
-            }
-            return res.apiResponse(true, 'Batch updated successfully', updatedBatch, 200);
-        } else {
-            return res.apiResponse(false, 'Payload is missing', {}, 400);
-        }
-    } catch (error) {
-        console.error('Update Error:', error);
-        return res.apiResponse(false, 'Error updating Batch', {}, 500);
-    }
 
+        console.log("========== BATCH UPDATE ==========");
+        console.log("REQ BODY:", req.body);
+
+        if (!req.body) {
+            return res.apiResponse(
+                false,
+                'Payload is missing',
+                {},
+                400
+            );
+        }
+
+        const {
+            id,
+            public_id,
+            fileChanged,
+            title,
+            titleTa,
+            momType,
+            week,
+            month,
+            status
+        } = req.body;
+
+        console.log("ID:", id);
+        console.log("English Title:", title);
+        console.log("Tamil Title:", titleTa);
+
+        if (!id) {
+            return res.apiResponse(
+                false,
+                'Id is missing',
+                {},
+                400
+            );
+        }
+
+        const updateFields = {};
+
+        if (title) {
+            updateFields.title = title;
+        }
+
+        if (momType) {
+            updateFields.momType = momType;
+        }
+
+        if (week) {
+            updateFields.week = week;
+        }
+
+        if (month) {
+            updateFields.month = month;
+        }
+
+        if (status) {
+            updateFields.status = status;
+        }
+
+        // ALWAYS save English + Tamil title
+        updateFields.translations = {
+            en: {
+                title: title || ''
+            },
+            ta: {
+                title: titleTa || ''
+            }
+        };
+
+        console.log(
+            "UPDATE TRANSLATIONS:",
+            updateFields.translations
+        );
+
+        // File update
+        if (fileChanged && public_id) {
+
+            await deleteFromCloudinary(public_id);
+
+            if (req.file) {
+
+                const {
+                    secure_url,
+                    public_id: newPublicId
+                } = await uploadToCloudinary(
+                    req.file,
+                    'batch'
+                );
+
+                updateFields.file = secure_url;
+                updateFields.public_id = newPublicId;
+            }
+        }
+
+        const updatedBatch =
+            await Batch.findOneAndUpdate(
+                { id: id },
+                {
+                    $set: updateFields
+                },
+                {
+                    new: true
+                }
+            );
+
+        if (!updatedBatch) {
+            return res.apiResponse(
+                false,
+                'Batch not found',
+                {},
+                404
+            );
+        }
+
+        console.log(
+            "UPDATED BATCH:",
+            updatedBatch.toObject()
+        );
+
+        return res.apiResponse(
+            true,
+            'Batch updated successfully',
+            updatedBatch,
+            200
+        );
+
+    } catch (error) {
+
+        console.error(
+            'Update Error:',
+            error
+        );
+
+        return res.apiResponse(
+            false,
+            'Error updating Batch',
+            {},
+            500
+        );
+    }
 };
+
+// exports.update = async (req, res, next) => {
+//     try {
+//         if (req.body) {
+//             const body = Object(req.body);
+//             const { id, public_id, fileChanged } = body;
+//             if (id === undefined || id === null) {
+//                 return res.apiResponse(false, 'Id is missing', {}, 400);
+//             }
+//             const updateFields = {};
+//             if (req.body.title) updateFields.title = req.body.title;
+//             if (!!req.body.momType) updateFields.momType = req.body.momType;
+//             if (!!req.body.week) updateFields.week = req.body.week;
+//             if (req.body.status) updateFields.status = req.body.status;
+//             if (fileChanged && public_id) {
+//                 await deleteFromCloudinary(public_id);
+//                 if (req.file) {
+//                     const { secure_url, public_id } = await uploadToCloudinary(req.file, 'batch');
+//                     updateFields.file = secure_url;
+//                     updateFields.public_id = public_id;
+//                 }
+//             }
+//             const updatedBatch = await Batch.findOneAndUpdate(
+//                 { id },
+//                 { $set: updateFields },
+//                 { new: true }
+//             );
+//             if (!updatedBatch) {
+//                 return res.apiResponse(false, 'Batch not found', {}, 404);
+//             }
+//             return res.apiResponse(true, 'Batch updated successfully', updatedBatch, 200);
+//         } else {
+//             return res.apiResponse(false, 'Payload is missing', {}, 400);
+//         }
+//     } catch (error) {
+//         console.error('Update Error:', error);
+//         return res.apiResponse(false, 'Error updating Batch', {}, 500);
+//     }
+
+// };
 
 exports.delete = async (req, res, next) => {
     try {

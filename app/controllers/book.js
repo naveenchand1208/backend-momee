@@ -40,62 +40,205 @@ const fs = require("fs").promises;
 //     }
 // }
 
+
 exports.add = async (req, res, next) => {
     try {
-        const { title, status, momType, link } = req.body;
+
+        const {
+            title,
+            titleTa,
+            status,
+            momType,
+            link
+        } = req.body;
+
         const { file, book } = req.files || {};
+
+        console.log('========== BOOK ADD ==========');
+        console.log('English Title:', title);
+        console.log('Tamil Title:', titleTa);
+        console.log('Mom Type:', momType);
 
         // Link or book is required
         if (!link && !book) {
-            return res.apiResponse(false, 'Book or Link is required', {}, 400);
+            return res.apiResponse(
+                false,
+                'Book or Link is required',
+                {},
+                400
+            );
         }
 
-        // Title already exists
-        const checkTitle = await Book.findOne({ title });
+        // English + Tamil title required
+        if (!title || !titleTa) {
+            return res.apiResponse(
+                false,
+                'English and Tamil title are required',
+                {},
+                400
+            );
+        }
+
+        const checkTitle = await Book.findOne({
+            title: title
+        });
+
         if (checkTitle) {
-            return res.apiResponse(false, 'Title already exists', {}, 400);
+            return res.apiResponse(
+                false,
+                'Title already exists',
+                {},
+                400
+            );
         }
 
         let fileUpload = null;
         let bookUpload = null;
 
-        // Upload file only if uploaded
+        // Thumbnail upload
         if (file && file[0]) {
-            fileUpload = await uploadToCloudinary(file[0], 'books');
+            fileUpload = await uploadToCloudinary(
+                file[0],
+                'books'
+            );
         }
 
-        // Upload book only if uploaded
+        // PDF upload
         if (book && book[0]) {
+
             if (book[0].mimetype !== 'application/pdf') {
-                return res.apiResponse(false, 'Only PDF files are allowed', {}, 400);
+                return res.apiResponse(
+                    false,
+                    'Only PDF files are allowed',
+                    {},
+                    400
+                );
             }
-            bookUpload = await uploadToCloudinary(book[0], 'books');
+
+            bookUpload = await uploadToCloudinary(
+                book[0],
+                'books'
+            );
         }
 
-        const uniqueId = `Book-${moment().format('DDMMYYYYHHmmss')}`;
+        const uniqueId =
+            `Book-${moment().format('DDMMYYYYHHmmss')}`;
 
         const newBook = new Book({
-            title,
-            link,
-            status,
+            title: title,
+
+            link: link,
+
+            status: status,
+
             file: fileUpload?.secure_url || null,
+
             public_id: fileUpload?.public_id || null,
 
             book: bookUpload?.secure_url || null,
+
             book_public_id: bookUpload?.public_id || null,
 
             id: uniqueId,
-            momType
+
+            momType: momType,
+
+            translations: {
+                en: {
+                    title: title
+                },
+                ta: {
+                    title: titleTa
+                }
+            }
         });
+
+        console.log(
+            'BOOK TRANSLATIONS:',
+            newBook.translations
+        );
 
         await newBook.save();
 
-        return res.apiResponse(true, "Book added successfully", newBook, 200);
+        return res.apiResponse(
+            true,
+            'Book added successfully',
+            newBook,
+            200
+        );
+
     } catch (error) {
-        console.error("Add Book Error:", error);
-        return res.apiResponse(false, 'Book Add error', { error }, 500);
+
+        console.error(
+            'Add Book Error:',
+            error
+        );
+
+        return res.apiResponse(
+            false,
+            'Book Add error',
+            { error },
+            500
+        );
     }
 };
+
+// exports.add = async (req, res, next) => {
+//     try {
+//         const { title, status, momType, link } = req.body;
+//         const { file, book } = req.files || {};
+
+//         // Link or book is required
+//         if (!link && !book) {
+//             return res.apiResponse(false, 'Book or Link is required', {}, 400);
+//         }
+
+//         // Title already exists
+//         const checkTitle = await Book.findOne({ title });
+//         if (checkTitle) {
+//             return res.apiResponse(false, 'Title already exists', {}, 400);
+//         }
+
+//         let fileUpload = null;
+//         let bookUpload = null;
+
+//         // Upload file only if uploaded
+//         if (file && file[0]) {
+//             fileUpload = await uploadToCloudinary(file[0], 'books');
+//         }
+
+//         // Upload book only if uploaded
+//         if (book && book[0]) {
+//             if (book[0].mimetype !== 'application/pdf') {
+//                 return res.apiResponse(false, 'Only PDF files are allowed', {}, 400);
+//             }
+//             bookUpload = await uploadToCloudinary(book[0], 'books');
+//         }
+
+//         const uniqueId = `Book-${moment().format('DDMMYYYYHHmmss')}`;
+
+//         const newBook = new Book({
+//             title,
+//             link,
+//             status,
+//             file: fileUpload?.secure_url || null,
+//             public_id: fileUpload?.public_id || null,
+
+//             book: bookUpload?.secure_url || null,
+//             book_public_id: bookUpload?.public_id || null,
+
+//             id: uniqueId,
+//             momType
+//         });
+
+//         await newBook.save();
+
+//         return res.apiResponse(true, "Book added successfully", newBook, 200);
+//     } catch (error) {
+//         console.error("Add Book Error:", error);
+//         return res.apiResponse(false, 'Book Add error', { error }, 500);
+//     }
+// };
 
 exports.list = async (req, res, next) => {
     try {
@@ -196,56 +339,218 @@ exports.view = async (req, res, next) => {
 
 exports.update = async (req, res, next) => {
     try {
-        if (req.body) {
-            console.log('req.body', req.body)
-            const { id, public_id, book_public_id, fileChanged, bookChanged } = req.body;
-            if (id === undefined || id === null) {
-                return res.apiResponse(false, 'Id is missing', {}, 400);
-            }
-            const updateFields = {};
-            if (req.body.title) updateFields.title = req.body.title;
-            updateFields.momType = req.body.momType;
-            if (req.body.status) updateFields.status = req.body.status;
-            // if (req.body.link)
-            updateFields.link = req.body.link;
-            const fileArray = req.files?.file || [];
-            const bookArray = req.files?.book || [];
-            if (bookArray?.[0] && bookArray[0].mimetype !== 'application/pdf') {
-                return res.apiResponse(false, 'Only PDF files are allowed', {}, 400);
-            }
 
-            if (fileChanged && public_id && fileArray[0]) {
-                await deleteFromCloudinary(public_id);
-                const result = await uploadToCloudinary(fileArray[0], 'books');
-                updateFields.file = result.secure_url;
-                updateFields.public_id = result.public_id;
-            }
-
-            if (bookChanged && book_public_id && bookArray[0]) {
-                await deleteFromCloudinary(book_public_id);
-                const result = await uploadToCloudinary(bookArray[0], 'books');
-                updateFields.book = result.secure_url;
-                updateFields.book_public_id = result.public_id;
-            }
-            console.log('coming')
-            const updatedBook = await Book.findOneAndUpdate(
-                { id },
-                { $set: updateFields },
-                { new: true }
+        if (!req.body) {
+            return res.apiResponse(
+                false,
+                'Payload is missing',
+                {},
+                400
             );
-            if (!updatedBook) {
-                return res.apiResponse(false, 'Book not found', {}, 404);
-            }
-            return res.apiResponse(true, 'Book updated successfully', updatedBook, 200);
-        } else {
-            return res.apiResponse(false, 'Payload is missing', {}, 400);
         }
-    } catch (error) {
-        console.error('Update Error:', error);
-        return res.apiResponse(false, 'Error updating Book', { error }, 500);
-    }
 
+        console.log('========== BOOK UPDATE ==========');
+        console.log('REQ BODY:', req.body);
+
+        const {
+            id,
+            public_id,
+            book_public_id,
+            fileChanged,
+            bookChanged,
+            title,
+            titleTa,
+            momType,
+            status,
+            link
+        } = req.body;
+
+        if (id === undefined || id === null) {
+            return res.apiResponse(
+                false,
+                'Id is missing',
+                {},
+                400
+            );
+        }
+
+        if (!title || !titleTa) {
+            return res.apiResponse(
+                false,
+                'English and Tamil title are required',
+                {},
+                400
+            );
+        }
+
+        const updateFields = {};
+
+        if (title) {
+            updateFields.title = title;
+        }
+
+        updateFields.momType = momType;
+
+        if (status) {
+            updateFields.status = status;
+        }
+
+        updateFields.link = link;
+
+        // English + Tamil
+        updateFields.translations = {
+            en: {
+                title: title
+            },
+            ta: {
+                title: titleTa
+            }
+        };
+
+        const fileArray = req.files?.file || [];
+        const bookArray = req.files?.book || [];
+
+        // PDF validation
+        if (
+            bookArray?.[0] &&
+            bookArray[0].mimetype !== 'application/pdf'
+        ) {
+            return res.apiResponse(
+                false,
+                'Only PDF files are allowed',
+                {},
+                400
+            );
+        }
+
+        // Thumbnail update
+        if (fileChanged && public_id && fileArray[0]) {
+
+            await deleteFromCloudinary(public_id);
+
+            const result = await uploadToCloudinary(
+                fileArray[0],
+                'books'
+            );
+
+            updateFields.file = result.secure_url;
+            updateFields.public_id = result.public_id;
+        }
+
+        // Book PDF update
+        if (bookChanged && book_public_id && bookArray[0]) {
+
+            await deleteFromCloudinary(book_public_id);
+
+            const result = await uploadToCloudinary(
+                bookArray[0],
+                'books'
+            );
+
+            updateFields.book = result.secure_url;
+            updateFields.book_public_id = result.public_id;
+        }
+
+        console.log(
+            'UPDATE TRANSLATIONS:',
+            updateFields.translations
+        );
+
+        const updatedBook =
+            await Book.findOneAndUpdate(
+                { id: id },
+                {
+                    $set: updateFields
+                },
+                {
+                    new: true
+                }
+            );
+
+        if (!updatedBook) {
+            return res.apiResponse(
+                false,
+                'Book not found',
+                {},
+                404
+            );
+        }
+
+        return res.apiResponse(
+            true,
+            'Book updated successfully',
+            updatedBook,
+            200
+        );
+
+    } catch (error) {
+
+        console.error(
+            'Update Error:',
+            error
+        );
+
+        return res.apiResponse(
+            false,
+            'Error updating Book',
+            { error },
+            500
+        );
+    }
 };
+
+// exports.update = async (req, res, next) => {
+//     try {
+//         if (req.body) {
+//             console.log('req.body', req.body)
+//             const { id, public_id, book_public_id, fileChanged, bookChanged } = req.body;
+//             if (id === undefined || id === null) {
+//                 return res.apiResponse(false, 'Id is missing', {}, 400);
+//             }
+//             const updateFields = {};
+//             if (req.body.title) updateFields.title = req.body.title;
+//             updateFields.momType = req.body.momType;
+//             if (req.body.status) updateFields.status = req.body.status;
+//             // if (req.body.link)
+//             updateFields.link = req.body.link;
+//             const fileArray = req.files?.file || [];
+//             const bookArray = req.files?.book || [];
+//             if (bookArray?.[0] && bookArray[0].mimetype !== 'application/pdf') {
+//                 return res.apiResponse(false, 'Only PDF files are allowed', {}, 400);
+//             }
+
+//             if (fileChanged && public_id && fileArray[0]) {
+//                 await deleteFromCloudinary(public_id);
+//                 const result = await uploadToCloudinary(fileArray[0], 'books');
+//                 updateFields.file = result.secure_url;
+//                 updateFields.public_id = result.public_id;
+//             }
+
+//             if (bookChanged && book_public_id && bookArray[0]) {
+//                 await deleteFromCloudinary(book_public_id);
+//                 const result = await uploadToCloudinary(bookArray[0], 'books');
+//                 updateFields.book = result.secure_url;
+//                 updateFields.book_public_id = result.public_id;
+//             }
+//             console.log('coming')
+//             const updatedBook = await Book.findOneAndUpdate(
+//                 { id },
+//                 { $set: updateFields },
+//                 { new: true }
+//             );
+//             if (!updatedBook) {
+//                 return res.apiResponse(false, 'Book not found', {}, 404);
+//             }
+//             return res.apiResponse(true, 'Book updated successfully', updatedBook, 200);
+//         } else {
+//             return res.apiResponse(false, 'Payload is missing', {}, 400);
+//         }
+//     } catch (error) {
+//         console.error('Update Error:', error);
+//         return res.apiResponse(false, 'Error updating Book', { error }, 500);
+//     }
+
+// };
 
 exports.delete = async (req, res, next) => {
     try {

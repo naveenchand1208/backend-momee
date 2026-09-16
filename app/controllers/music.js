@@ -4,83 +4,422 @@ const moment = require('moment');
 
 exports.add = async (req, res, next) => {
     try {
-        const { name, momType, status } = req.body;
-        if (!name || !momType) {
-            return res.apiResponse(false, 'name, or momType is missing', {}, 400);
-        }
 
-        // if (momType === 'pregMom' && !week) {
-        //     return res.apiResponse(false, 'Week is required', {}, 400);
-        // }
-
-        // if (momType === 'newMom' && !month) {
-        //     return res.apiResponse(false, 'Month is required', {}, 400);
-        // }
-        let secure_url, public_id;
-        if (req.file) {
-            ({ secure_url, public_id } = await uploadToCloudinary(req.file, 'musics'));
-        }
-
-        const id = `Music-${moment().format('DDMMYYYYHHmmss')}`;
-        const newMusic = new Music({
-            id,
+        const {
             name,
+            nameTa,
             momType,
+            status
+        } = req.body;
+
+        console.log('========== MUSIC ADD ==========');
+        console.log('name:', name);
+        console.log('nameTa:', nameTa);
+        console.log('momType:', momType);
+        console.log('status:', status);
+        console.log('file:', req.file);
+
+        if (!name || !nameTa || !momType) {
+
+            return res.apiResponse(
+                false,
+                'English name, Tamil name or Mom Type is missing',
+                {},
+                400
+            );
+        }
+
+        let secure_url;
+        let public_id;
+
+        if (req.file) {
+
+            ({
+                secure_url,
+                public_id
+            } = await uploadToCloudinary(
+                req.file,
+                'musics'
+            ));
+
+        }
+
+        const id =
+            `Music-${moment().format('DDMMYYYYHHmmss')}`;
+
+        const newMusic = new Music({
+
+            id,
+
+            // Existing English field
+            name,
+
+            momType,
+
             status: status || 'Active',
+
             file: secure_url,
+
             public_id: public_id,
+
+            // English + Tamil
+            translations: {
+
+                en: {
+                    name: name
+                },
+
+                ta: {
+                    name: nameTa
+                }
+
+            }
+
         });
+
         await newMusic.save();
-        return res.apiResponse(true, 'Music added successfully', newMusic, 200);
+
+        console.log(
+            '========== MUSIC SAVED =========='
+        );
+
+        console.log(
+            newMusic.toObject()
+        );
+
+        return res.apiResponse(
+            true,
+            'Music added successfully',
+            newMusic,
+            200
+        );
+
     } catch (error) {
-        return res.apiResponse(false, 'Music Add error', { error }, 500);
+
+        console.error(
+            'Music Add error:',
+            error
+        );
+
+        return res.apiResponse(
+            false,
+            'Music Add error',
+            {
+                error: error.message
+            },
+            500
+        );
     }
-}
+};
+
+// exports.add = async (req, res, next) => {
+//     try {
+//         const { name, momType, status } = req.body;
+//         if (!name || !momType) {
+//             return res.apiResponse(false, 'name, or momType is missing', {}, 400);
+//         }
+
+//         // if (momType === 'pregMom' && !week) {
+//         //     return res.apiResponse(false, 'Week is required', {}, 400);
+//         // }
+
+//         // if (momType === 'newMom' && !month) {
+//         //     return res.apiResponse(false, 'Month is required', {}, 400);
+//         // }
+//         let secure_url, public_id;
+//         if (req.file) {
+//             ({ secure_url, public_id } = await uploadToCloudinary(req.file, 'musics'));
+//         }
+
+//         const id = `Music-${moment().format('DDMMYYYYHHmmss')}`;
+//         const newMusic = new Music({
+//             id,
+//             name,
+//             momType,
+//             status: status || 'Active',
+//             file: secure_url,
+//             public_id: public_id,
+//         });
+//         await newMusic.save();
+//         return res.apiResponse(true, 'Music added successfully', newMusic, 200);
+//     } catch (error) {
+//         return res.apiResponse(false, 'Music Add error', { error }, 500);
+//     }
+// }
+
+// exports.addPlayList = async (req, res, next) => {
+//     try {
+//         const { musicId, name, duration } = req.body;
+//         if (!musicId || !name || !duration) {
+//             return res.apiResponse(false, 'Music details are missing', {}, 400);
+//         }
+//         if (!req.file) {
+//             return res.apiResponse(false, 'Audio file is required', {}, 400);
+//         }
+//         const allowedAudioTypes = [
+//             'audio/mpeg',     // .mp3
+//             'audio/mp3',      // .mp3 (alternative)
+//             'audio/wav',      // .wav
+//             'audio/x-wav',    // .wav (alternative)
+//             'audio/ogg',      // .ogg
+//             'audio/webm',     // .webm
+//             'audio/aac',      // .aac
+//             'audio/flac'      // .flac
+//         ];
+//         if (!allowedAudioTypes.includes(req.file.mimetype)) {
+//             return res.apiResponse(false, 'Only Audio files are allowed', { error }, 400);
+//         } else {
+//             console.log('audio-allowed')
+//         }
+//         const music = await Music.findOne({ id: musicId })
+//         if (!music) {
+//             return res.apiResponse(false, 'Music not found', {}, 404);
+//         }
+//         const { secure_url, public_id } = await uploadToCloudinary(req.file, 'musics');
+//         const playListId = `PlayList-${moment().format('DDMMYYYYHHmmss')}`;
+//         const audioList = {
+//             name,
+//             playListId,
+//             duration,
+//             file: secure_url,
+//             public_id
+//         }
+//         music.playLists.push(audioList)
+//         music.markModified('playLists');
+//         await music.save()
+//         return res.apiResponse(true, 'Music added successfully', music, 200);
+//     } catch (error) {
+//         return res.apiResponse(false, 'Music Add error', { error }, 500);
+//     }
+// }
+
 exports.addPlayList = async (req, res, next) => {
     try {
-        const { musicId, name, duration } = req.body;
-        if (!musicId || !name || !duration) {
-            return res.apiResponse(false, 'Music details are missing', {}, 400);
-        }
-        if (!req.file) {
-            return res.apiResponse(false, 'Audio file is required', {}, 400);
-        }
-        const allowedAudioTypes = [
-            'audio/mpeg',     // .mp3
-            'audio/mp3',      // .mp3 (alternative)
-            'audio/wav',      // .wav
-            'audio/x-wav',    // .wav (alternative)
-            'audio/ogg',      // .ogg
-            'audio/webm',     // .webm
-            'audio/aac',      // .aac
-            'audio/flac'      // .flac
-        ];
-        if (!allowedAudioTypes.includes(req.file.mimetype)) {
-            return res.apiResponse(false, 'Only Audio files are allowed', { error }, 400);
-        } else {
-            console.log('audio-allowed')
-        }
-        const music = await Music.findOne({ id: musicId })
-        if (!music) {
-            return res.apiResponse(false, 'Music not found', {}, 404);
-        }
-        const { secure_url, public_id } = await uploadToCloudinary(req.file, 'musics');
-        const playListId = `PlayList-${moment().format('DDMMYYYYHHmmss')}`;
-        const audioList = {
+
+        const {
+            musicId,
             name,
-            playListId,
-            duration,
-            file: secure_url,
-            public_id
+            nameTa,
+            duration
+        } = req.body;
+
+
+        console.log('========== PLAYLIST ADD ==========');
+
+        console.log('musicId:', musicId);
+        console.log('English playlist name:', name);
+        console.log('Tamil playlist name:', nameTa);
+        console.log('duration:', duration);
+        console.log('file:', req.file);
+
+
+        // ==========================================
+        // VALIDATION
+        // ==========================================
+
+        if (!musicId) {
+            return res.apiResponse(
+                false,
+                'Music ID is missing',
+                {},
+                400
+            );
         }
-        music.playLists.push(audioList)
-        music.markModified('playLists');
-        await music.save()
-        return res.apiResponse(true, 'Music added successfully', music, 200);
+
+        if (!name) {
+            return res.apiResponse(
+                false,
+                'English playlist name is missing',
+                {},
+                400
+            );
+        }
+
+        if (!nameTa) {
+            return res.apiResponse(
+                false,
+                'Tamil playlist name is missing',
+                {},
+                400
+            );
+        }
+
+        if (!duration) {
+            return res.apiResponse(
+                false,
+                'Duration is missing',
+                {},
+                400
+            );
+        }
+
+        if (!req.file) {
+            return res.apiResponse(
+                false,
+                'Audio file is required',
+                {},
+                400
+            );
+        }
+
+
+        // ==========================================
+        // FIND MUSIC
+        // ==========================================
+
+        const music = await Music.findOne({
+            id: musicId
+        });
+
+
+        if (!music) {
+            return res.apiResponse(
+                false,
+                'Music not found',
+                {},
+                404
+            );
+        }
+
+
+        // ==========================================
+        // UPLOAD AUDIO
+        // ==========================================
+
+        const {
+            secure_url,
+            public_id
+        } = await uploadToCloudinary(
+            req.file,
+            'musics'
+        );
+
+
+        // ==========================================
+        // PLAYLIST ID
+        // ==========================================
+
+        const playListId =
+            `PlayList-${moment().format('DDMMYYYYHHmmss')}`;
+
+
+        // ==========================================
+        // CREATE PLAYLIST
+        // ==========================================
+
+        const audioList = {
+
+            // Existing English field
+            name: name,
+
+            playListId: playListId,
+
+            duration: Number(duration),
+
+            file: secure_url,
+
+            public_id: public_id,
+
+
+            // IMPORTANT
+            // English + Tamil
+            translations: {
+
+                en: {
+                    name: name
+                },
+
+                ta: {
+                    name: nameTa
+                }
+
+            }
+
+        };
+
+
+        console.log(
+            '========== PLAYLIST OBJECT =========='
+        );
+
+        console.log(
+            JSON.stringify(
+                audioList,
+                null,
+                2
+            )
+        );
+
+
+        // ==========================================
+        // PUSH
+        // ==========================================
+
+        music.playLists.push(
+            audioList
+        );
+
+
+        music.markModified(
+            'playLists'
+        );
+
+
+        // ==========================================
+        // SAVE
+        // ==========================================
+
+        await music.save();
+
+
+        console.log(
+            '========== PLAYLIST SAVED =========='
+        );
+
+
+        // Check what actually got saved
+        const savedMusic = await Music.findOne({
+            id: musicId
+        }).lean();
+
+
+        console.log(
+            JSON.stringify(
+                savedMusic?.playLists,
+                null,
+                2
+            )
+        );
+
+
+        return res.apiResponse(
+            true,
+            'Playlist added successfully',
+            savedMusic,
+            200
+        );
+
+
     } catch (error) {
-        return res.apiResponse(false, 'Music Add error', { error }, 500);
+
+        console.error(
+            'Playlist Add Error:',
+            error
+        );
+
+
+        return res.apiResponse(
+            false,
+            'Playlist Add error',
+            {
+                error: error.message
+            },
+            500
+        );
+
     }
-}
+};
+
 exports.list = async (req, res, next) => {
     try {
         const requests = req.bodyParams;
@@ -205,80 +544,531 @@ exports.viewPlayList = async (req, res, next) => {
 }
 exports.update = async (req, res, next) => {
     try {
-        if (req.body) {
-            console.log('req.body', req.body)
-            const { id, public_id, fileChanged } = req.body;
-            if (id === undefined || id === null) {
-                return res.apiResponse(false, 'Id is missing', {}, 400);
-            }
-            const updateFields = {};
-            if (req.body.name) updateFields.name = req.body.name;
-            if (req.body.momType) updateFields.momType = req.body.momType;
-            // if (!!req.body.week) updateFields.week = req.body.week;
-            // if (!!req.body.month) updateFields.month = req.body.month;
-            if (req.body.status) updateFields.status = req.body.status;
-            // let changed;
-            // if (typeof fileChanged === 'String') {
-            //     changed = JSON.parse(fileChanged)
-            // }
-            if (fileChanged && public_id) {
-                await deleteFromCloudinary(public_id);
-                const result = await uploadToCloudinary(req.file, 'musics');
-                updateFields.file = result.secure_url;
-                updateFields.public_id = result.public_id;
-            }
-            const updatedMusic = await Music.findOneAndUpdate(
-                { id },
-                { $set: updateFields },
-                { new: true }
-            );
-            if (!updatedMusic) {
-                return res.apiResponse(false, 'Music not found', {}, 404);
-            }
-            return res.apiResponse(true, 'Music updated successfully', updatedMusic, 200);
-        } else {
-            return res.apiResponse(false, 'Payload is missing', {}, 400);
-        }
-    } catch (error) {
-        console.error('Update Error:', error);
-        return res.apiResponse(false, 'Error updating Music', { error }, 500);
-    }
 
+        if (!req.body) {
+            return res.apiResponse(
+                false,
+                'Payload is missing',
+                {},
+                400
+            );
+        }
+
+        console.log(
+            '========== MUSIC UPDATE =========='
+        );
+
+        console.log(
+            'req.body:',
+            req.body
+        );
+
+
+        const {
+            id,
+            public_id,
+            fileChanged,
+            name,
+            nameTa,
+            momType,
+            status
+        } = req.body;
+
+
+        if (
+            id === undefined ||
+            id === null ||
+            id === ''
+        ) {
+
+            return res.apiResponse(
+                false,
+                'Id is missing',
+                {},
+                400
+            );
+
+        }
+
+
+        const updateFields = {};
+
+
+        // =====================================================
+        // ENGLISH NAME
+        // =====================================================
+
+        if (name) {
+
+            updateFields.name = name;
+
+        }
+
+
+        // =====================================================
+        // MOM TYPE
+        // =====================================================
+
+        if (momType) {
+
+            updateFields.momType = momType;
+
+        }
+
+
+        // =====================================================
+        // STATUS
+        // =====================================================
+
+        if (status) {
+
+            updateFields.status = status;
+
+        }
+
+
+        // =====================================================
+        // ENGLISH + TAMIL
+        // =====================================================
+
+        const existingMusic =
+            await Music.findOne({ id });
+
+
+        if (!existingMusic) {
+
+            return res.apiResponse(
+                false,
+                'Music not found',
+                {},
+                404
+            );
+
+        }
+
+
+        const existingTranslations =
+            existingMusic.translations || {};
+
+
+        updateFields.translations = {
+
+            en: {
+
+                name:
+                    name ||
+                    existingTranslations?.en?.name ||
+                    existingMusic.name ||
+                    ''
+
+            },
+
+            ta: {
+
+                name:
+                    nameTa ||
+                    existingTranslations?.ta?.name ||
+                    ''
+
+            }
+
+        };
+
+
+        // =====================================================
+        // FILE UPDATE
+        // =====================================================
+
+        if (
+            fileChanged &&
+            public_id &&
+            req.file
+        ) {
+
+            await deleteFromCloudinary(
+                public_id
+            );
+
+
+            const result =
+                await uploadToCloudinary(
+                    req.file,
+                    'musics'
+                );
+
+
+            updateFields.file =
+                result.secure_url;
+
+
+            updateFields.public_id =
+                result.public_id;
+
+        }
+
+
+        // =====================================================
+        // UPDATE
+        // =====================================================
+
+        const updatedMusic =
+            await Music.findOneAndUpdate(
+
+                { id },
+
+                {
+                    $set: updateFields
+                },
+
+                {
+                    new: true
+                }
+
+            );
+
+
+        if (!updatedMusic) {
+
+            return res.apiResponse(
+                false,
+                'Music not found',
+                {},
+                404
+            );
+
+        }
+
+
+        console.log(
+            '========== MUSIC UPDATED =========='
+        );
+
+        console.log(
+            updatedMusic.toObject()
+        );
+
+
+        return res.apiResponse(
+            true,
+            'Music updated successfully',
+            updatedMusic,
+            200
+        );
+
+
+    } catch (error) {
+
+        console.error(
+            'Update Music Error:',
+            error
+        );
+
+        return res.apiResponse(
+            false,
+            'Error updating Music',
+            {
+                error: error.message
+            },
+            500
+        );
+
+    }
 };
+// exports.update = async (req, res, next) => {
+//     try {
+//         if (req.body) {
+//             console.log('req.body', req.body)
+//             const { id, public_id, fileChanged } = req.body;
+//             if (id === undefined || id === null) {
+//                 return res.apiResponse(false, 'Id is missing', {}, 400);
+//             }
+//             const updateFields = {};
+//             if (req.body.name) updateFields.name = req.body.name;
+//             if (req.body.momType) updateFields.momType = req.body.momType;
+//             // if (!!req.body.week) updateFields.week = req.body.week;
+//             // if (!!req.body.month) updateFields.month = req.body.month;
+//             if (req.body.status) updateFields.status = req.body.status;
+//             // let changed;
+//             // if (typeof fileChanged === 'String') {
+//             //     changed = JSON.parse(fileChanged)
+//             // }
+//             if (fileChanged && public_id) {
+//                 await deleteFromCloudinary(public_id);
+//                 const result = await uploadToCloudinary(req.file, 'musics');
+//                 updateFields.file = result.secure_url;
+//                 updateFields.public_id = result.public_id;
+//             }
+//             const updatedMusic = await Music.findOneAndUpdate(
+//                 { id },
+//                 { $set: updateFields },
+//                 { new: true }
+//             );
+//             if (!updatedMusic) {
+//                 return res.apiResponse(false, 'Music not found', {}, 404);
+//             }
+//             return res.apiResponse(true, 'Music updated successfully', updatedMusic, 200);
+//         } else {
+//             return res.apiResponse(false, 'Payload is missing', {}, 400);
+//         }
+//     } catch (error) {
+//         console.error('Update Error:', error);
+//         return res.apiResponse(false, 'Error updating Music', { error }, 500);
+//     }
+
+// };
+
+// exports.updatePlayList = async (req, res, next) => {
+//     try {
+//         const { musicId, playListId, public_id, fileChanged } = req.body;
+//         if (!musicId || !playListId) {
+//             return res.apiResponse(false, 'musicId or playListId is missing', {}, 400);
+//         }
+//         const music = await Music.findOne({ id: musicId });
+//         if (!music) {
+//             return res.apiResponse(false, 'Music not found', {}, 404);
+//         }
+//         const playList = music.playLists.find(ex => ex.playListId === playListId);
+//         if (!playList) {
+//             return res.apiResponse(false, 'Play List not found', {}, 404);
+//         }
+//         // Update fields
+//         if (req.body.name) playList.name = req.body.name;
+//         if (req.body.duration) playList.duration = req.body.duration;
+
+//         // Handle file change
+//         if (fileChanged && public_id && req.file) {
+//             await deleteFromCloudinary(public_id, 'video');
+//             const { secure_url, public_id: newId } = await uploadToCloudinary(req.file, 'musics');
+//             playList.file = secure_url;
+//             playList.public_id = newId;
+//         }
+
+//         music.markModified('playLists');
+//         await music.save();
+
+//         return res.apiResponse(true, 'PlayList updated successfully', music, 200);
+
+//     } catch (error) {
+//         console.error('Update PlayList Error:', error);
+//         return res.apiResponse(false, 'Error updating PlayList', {}, 500);
+//     }
+// };
+
 exports.updatePlayList = async (req, res, next) => {
     try {
-        const { musicId, playListId, public_id, fileChanged } = req.body;
-        if (!musicId || !playListId) {
-            return res.apiResponse(false, 'musicId or playListId is missing', {}, 400);
+
+        const {
+            musicId,
+            playListId,
+            public_id,
+            fileChanged,
+            name,
+            nameTa,
+            duration
+        } = req.body;
+
+
+        console.log('========== PLAYLIST UPDATE ==========');
+
+        console.log('musicId:', musicId);
+        console.log('playListId:', playListId);
+        console.log('English name:', name);
+        console.log('Tamil name:', nameTa);
+        console.log('duration:', duration);
+
+
+        if (!musicId) {
+            return res.apiResponse(
+                false,
+                'Music ID is missing',
+                {},
+                400
+            );
         }
-        const music = await Music.findOne({ id: musicId });
+
+
+        if (!playListId) {
+            return res.apiResponse(
+                false,
+                'Playlist ID is missing',
+                {},
+                400
+            );
+        }
+
+
+        if (!name) {
+            return res.apiResponse(
+                false,
+                'English playlist name is missing',
+                {},
+                400
+            );
+        }
+
+
+        if (!nameTa) {
+            return res.apiResponse(
+                false,
+                'Tamil playlist name is missing',
+                {},
+                400
+            );
+        }
+
+
+        if (!duration) {
+            return res.apiResponse(
+                false,
+                'Duration is missing',
+                {},
+                400
+            );
+        }
+
+
+        // ==========================================
+        // FIND MUSIC
+        // ==========================================
+
+        const music = await Music.findOne({
+            id: musicId
+        });
+
+
         if (!music) {
-            return res.apiResponse(false, 'Music not found', {}, 404);
+            return res.apiResponse(
+                false,
+                'Music not found',
+                {},
+                404
+            );
         }
-        const playList = music.playLists.find(ex => ex.playListId === playListId);
+
+
+        // ==========================================
+        // FIND PLAYLIST
+        // ==========================================
+
+        const playList = music.playLists.find(
+            item =>
+                item.playListId === playListId
+        );
+
+
         if (!playList) {
-            return res.apiResponse(false, 'Play List not found', {}, 404);
-        }
-        // Update fields
-        if (req.body.name) playList.name = req.body.name;
-        if (req.body.duration) playList.duration = req.body.duration;
-
-        // Handle file change
-        if (fileChanged && public_id && req.file) {
-            await deleteFromCloudinary(public_id, 'video');
-            const { secure_url, public_id: newId } = await uploadToCloudinary(req.file, 'musics');
-            playList.file = secure_url;
-            playList.public_id = newId;
+            return res.apiResponse(
+                false,
+                'Playlist not found',
+                {},
+                404
+            );
         }
 
-        music.markModified('playLists');
+
+        // ==========================================
+        // ENGLISH
+        // ==========================================
+
+        playList.name = name;
+
+
+        // ==========================================
+        // DURATION
+        // ==========================================
+
+        playList.duration = Number(duration);
+
+
+        // ==========================================
+        // ENGLISH + TAMIL
+        // ==========================================
+
+        playList.translations = {
+
+            en: {
+                name: name
+            },
+
+            ta: {
+                name: nameTa
+            }
+
+        };
+
+
+        // ==========================================
+        // AUDIO UPDATE
+        // ==========================================
+
+        if (
+            fileChanged === 'true' &&
+            public_id &&
+            req.file
+        ) {
+
+            await deleteFromCloudinary(
+                public_id,
+                'video'
+            );
+
+
+            const result =
+                await uploadToCloudinary(
+                    req.file,
+                    'musics'
+                );
+
+
+            playList.file =
+                result.secure_url;
+
+
+            playList.public_id =
+                result.public_id;
+
+        }
+
+
+        music.markModified(
+            'playLists'
+        );
+
+
         await music.save();
 
-        return res.apiResponse(true, 'PlayList updated successfully', music, 200);
+
+        const updatedMusic =
+            await Music.findOne({
+                id: musicId
+            }).lean();
+
+
+        return res.apiResponse(
+            true,
+            'Playlist updated successfully',
+            updatedMusic,
+            200
+        );
+
 
     } catch (error) {
-        console.error('Update PlayList Error:', error);
-        return res.apiResponse(false, 'Error updating PlayList', {}, 500);
+
+        console.error(
+            'Playlist Update Error:',
+            error
+        );
+
+
+        return res.apiResponse(
+            false,
+            'Playlist update error',
+            {
+                error: error.message
+            },
+            500
+        );
+
     }
 };
 exports.delete = async (req, res, next) => {

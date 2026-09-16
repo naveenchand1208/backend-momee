@@ -64,45 +64,303 @@ const razorpay = new Razorpay({
 
 exports.add = async (req, res, next) => {
     try {
+
         const {
-            name, momType, description, actualPrice, discountPercentage
+            name,
+            nameTa,
+            momType,
+            description,
+            descriptionTa,
+            actualPrice,
+            discountPercentage
         } = req.body;
-        if (!name || !momType || !description || !actualPrice || !discountPercentage) {
-            return res.apiResponse(false, 'Product add params is missing', {}, 400);
+
+
+        console.log('================================');
+        console.log('PRODUCT ADD');
+        console.log('================================');
+
+        console.log('English Name:', name);
+        console.log('Tamil Name:', nameTa);
+        console.log('English Description:', description);
+        console.log('Tamil Description:', descriptionTa);
+        console.log('Mom Type:', momType);
+        console.log('Actual Price:', actualPrice);
+        console.log('Discount:', discountPercentage);
+
+
+        // English validation
+        if (!name) {
+            return res.apiResponse(
+                false,
+                'English Product Name is missing',
+                {},
+                400
+            );
         }
-        // || req.files.length > 0
-        // const checkTitle = await Product.findOne({ name: name })
-        // if (checkTitle) {
-        //     return res.apiResponse(false, 'Product Name already exists', {}, 400);
-        // }
+
+
+        // Tamil validation
+        if (!nameTa) {
+            return res.apiResponse(
+                false,
+                'Tamil Product Name is missing',
+                {},
+                400
+            );
+        }
+
+
+        if (!momType) {
+            return res.apiResponse(
+                false,
+                'Mom Type is missing',
+                {},
+                400
+            );
+        }
+
+
+        // English description
+        if (!description) {
+            return res.apiResponse(
+                false,
+                'English Description is missing',
+                {},
+                400
+            );
+        }
+
+
+        // Tamil description
+        if (!descriptionTa) {
+            return res.apiResponse(
+                false,
+                'Tamil Description is missing',
+                {},
+                400
+            );
+        }
+
+
+        if (!actualPrice) {
+            return res.apiResponse(
+                false,
+                'Actual Price is missing',
+                {},
+                400
+            );
+        }
+
+
+        if (!discountPercentage) {
+            return res.apiResponse(
+                false,
+                'Discount Percentage is missing',
+                {},
+                400
+            );
+        }
+
+
+        // ==========================================
+        // FILE UPLOAD
+        // ==========================================
+
         const uploadedFiles = [];
-        for (const file of req.files) {
-            const result = await uploadToCloudinary(file, `products`);
+
+        for (const file of req.files || []) {
+
+            const result =
+                await uploadToCloudinary(
+                    file,
+                    'products'
+                );
+
             uploadedFiles.push({
                 public_id: result.public_id,
                 url: result.secure_url,
                 fileChanged: false
             });
         }
-        // const price = actualPrice - (actualPrice * discountPercentage / 100);
-        const price = Math.round(actualPrice - (actualPrice * discountPercentage / 100));
-        const uniqueId = `Product-${moment().format('DDMMYYYYHHmmss')}`;
+
+
+        // ==========================================
+        // PRICE
+        // ==========================================
+
+        const price = Math.round(
+            actualPrice -
+            (
+                actualPrice *
+                discountPercentage /
+                100
+            )
+        );
+
+
+        // ==========================================
+        // UNIQUE ID
+        // ==========================================
+
+        const uniqueId =
+            `Product-${moment().format('DDMMYYYYHHmmss')}`;
+
+
+        // ==========================================
+        // CREATE PRODUCT
+        // ==========================================
+
         const newProduct = new Product({
-            name,
-            momType,
-            description,
-            actualPrice,
-            price,
-            discountPercentage,
+
             id: uniqueId,
+
+            // Existing English fields
+            name: name,
+
+            description: description,
+
+            actualPrice: actualPrice,
+
+            price: price,
+
+            discountPercentage:
+                discountPercentage,
+
+            momType: momType,
+
+            status: 'Active',
+
             files: uploadedFiles,
+
+
+            // ======================================
+            // ENGLISH + TAMIL
+            // ======================================
+
+            translations: {
+
+                en: {
+                    name: name,
+                    description: description
+                },
+
+                ta: {
+                    name: nameTa,
+                    description: descriptionTa
+                }
+
+            }
+
         });
-        await newProduct.save();
-        return res.apiResponse(true, "Product added Success", newProduct, 200);
+
+
+        console.log(
+            'BEFORE SAVE:',
+            JSON.stringify(
+                newProduct.toObject(),
+                null,
+                2
+            )
+        );
+
+
+        // ==========================================
+        // SAVE
+        // ==========================================
+
+        const savedProduct =
+            await newProduct.save();
+
+
+        console.log(
+            'AFTER SAVE:',
+            JSON.stringify(
+                savedProduct.toObject(),
+                null,
+                2
+            )
+        );
+
+
+        console.log(
+            'TAMIL NAME:',
+            savedProduct.translations?.ta?.name
+        );
+
+        console.log(
+            'TAMIL DESCRIPTION:',
+            savedProduct.translations?.ta?.description
+        );
+
+
+        return res.apiResponse(
+            true,
+            'Product added Success',
+            savedProduct,
+            200
+        );
+
+
     } catch (error) {
-        return res.apiResponse(false, "Add Product Error", 500)
+
+        console.error(
+            'Add Product Error:',
+            error
+        );
+
+        return res.apiResponse(
+            false,
+            'Add Product Error',
+            {
+                error: error.message
+            },
+            500
+        );
     }
-}
+};
+
+// exports.add = async (req, res, next) => {
+//     try {
+//         const {
+//             name, momType, description, actualPrice, discountPercentage
+//         } = req.body;
+//         if (!name || !momType || !description || !actualPrice || !discountPercentage) {
+//             return res.apiResponse(false, 'Product add params is missing', {}, 400);
+//         }
+//         // || req.files.length > 0
+//         // const checkTitle = await Product.findOne({ name: name })
+//         // if (checkTitle) {
+//         //     return res.apiResponse(false, 'Product Name already exists', {}, 400);
+//         // }
+//         const uploadedFiles = [];
+//         for (const file of req.files) {
+//             const result = await uploadToCloudinary(file, `products`);
+//             uploadedFiles.push({
+//                 public_id: result.public_id,
+//                 url: result.secure_url,
+//                 fileChanged: false
+//             });
+//         }
+//         // const price = actualPrice - (actualPrice * discountPercentage / 100);
+//         const price = Math.round(actualPrice - (actualPrice * discountPercentage / 100));
+//         const uniqueId = `Product-${moment().format('DDMMYYYYHHmmss')}`;
+//         const newProduct = new Product({
+//             name,
+//             momType,
+//             description,
+//             actualPrice,
+//             price,
+//             discountPercentage,
+//             id: uniqueId,
+//             files: uploadedFiles,
+//         });
+//         await newProduct.save();
+//         return res.apiResponse(true, "Product added Success", newProduct, 200);
+//     } catch (error) {
+//         return res.apiResponse(false, "Add Product Error", 500)
+//     }
+// }
 
 exports.list = async (req, res, next) => {
     try {
@@ -300,119 +558,594 @@ exports.view = async (req, res, next) => {
 // };
 
 exports.update = async (req, res, next) => {
+
     try {
-        if (req.body) {
-            const body = Object(req.body);
-            const { id, actualPrice, discountPercentage } = body;
-            if (id === undefined || id === null) {
-                return res.apiResponse(false, 'Id is missing', {}, 400);
-            }
-            const product = await Product.findOne({ id })
-            if (!product) {
-                return res.apiResponse(false, 'Product Not Found', {}, 404);
-            }
 
-            const validMomTypes = ['newMom', 'pregMom'];
-            const validStatuses = ['Active', 'Inactive'];
-
-            let updateFields = {};
-            if (req.body.name) updateFields.name = req.body.name;
-            if (req.body.momType) {
-                if (!validMomTypes.includes(req.body.momType)) {
-                    return res.apiResponse(false, `Invalid momType. Must be one of: ${validMomTypes.join(', ')}`, {}, 400);
-                }
-                updateFields.momType = req.body.momType;
-            }
-            // if (req.body.price) updateFields.price = req.body.price;
-            // if (req.body.actualPrice) updateFields.actualPrice = req.body.actualPrice;
-            // if (req.body.discountPercentage) updateFields.discountPercentage = req.body.discountPercentage;
-            if (req.body.description) updateFields.description = req.body.description;
-            if (req.body.status) {
-                if (!validStatuses.includes(req.body.status)) {
-                    return res.apiResponse(false, `Invalid status. Must be one of: ${validStatuses.join(', ')}`, {}, 400);
-                }
-                updateFields.status = req.body.status;
-            }
-
-            const finalActualPrice = actualPrice !== undefined ? actualPrice : product.actualPrice;
-            console.log('finalActualPrice', finalActualPrice)
-            const finalDiscount = discountPercentage !== undefined ? discountPercentage : product.discountPercentage;
-            console.log('finalDiscount', finalDiscount)
-
-            // Calculate final price (no decimals)
-            const price = Math.round(finalActualPrice - (finalActualPrice * finalDiscount / 100));
-            updateFields.actualPrice = finalActualPrice;
-            updateFields.discountPercentage = finalDiscount;
-            updateFields.price = price;
-            const uploadedFiles = [];
-            if (req.files) {
-                for (const file of req.files) {
-                    const result = await uploadToCloudinary(file, 'products');
-                    uploadedFiles.push({
-                        public_id: result.public_id,
-                        url: result.secure_url,
-                        fileChanged: false,
-                    });
-                }
-            }
-
-            let finalOldFiles = [];
-            let oldFiles = req.body.oldFiles;
-
-            // Step 1: Parse oldFiles if it's a JSON string
-            if (typeof oldFiles === 'string') {
-                try {
-                    oldFiles = JSON.parse(oldFiles);
-                } catch (e) {
-                    console.error('Invalid JSON in oldFiles');
-                    oldFiles = [];
-                }
-            }
-
-            // Step 2: Handle oldFiles logic
-            if (Array.isArray(oldFiles)) {
-                for (const file of oldFiles) {
-                    const isChanged = file.fileChanged === true || file.fileChanged === 'true';
-                    if (isChanged && file.public_id) {
-                        await deleteFromCloudinary(file.public_id); // Remove from Cloudinary
-                    } else {
-                        finalOldFiles.push(file); // Retain file if not changed
-                    }
-                }
-            } else {
-                // If no oldFiles sent, retain existing product files
-                finalOldFiles = product.files || [];
-            }
-
-            // Step 3: Merge all
-            const updatedFilesArray = finalOldFiles.concat(uploadedFiles);
-
-            // Step 4: Set the update
-            // updateFields = {
-            updateFields.files = updatedFilesArray;
-            // };
-
-            const updatedProduct = await Product.findOneAndUpdate(
-                { id },
-                { $set: updateFields },
-                { new: true, runValidators: true }
+        if (!req.body) {
+            return res.apiResponse(
+                false,
+                'Payload is missing',
+                {},
+                400
             );
-            if (!updatedProduct) {
-                return res.apiResponse(false, 'Product not found', {}, 404);
-            }
-            return res.apiResponse(true, 'Product updated successfully', updatedProduct, 200);
-        } else {
-            return res.apiResponse(false, 'Payload is missing', {}, 400);
         }
-    } catch (error) {
-        console.error('Update Error:', error);
-        if (error.name === 'ValidationError') {
-            return res.apiResponse(false, error.message, {}, 400);
-        }
-        return res.apiResponse(false, 'Error updating Product', {}, 500);
-    }
 
+
+        const body = Object(req.body);
+
+
+        const {
+            id,
+            name,
+            nameTa,
+            momType,
+            description,
+            descriptionTa,
+            actualPrice,
+            discountPercentage,
+            status
+        } = body;
+
+
+        console.log('================================');
+        console.log('PRODUCT UPDATE');
+        console.log('================================');
+
+        console.log('ID:', id);
+
+        console.log(
+            'English Name:',
+            name
+        );
+
+        console.log(
+            'Tamil Name:',
+            nameTa
+        );
+
+        console.log(
+            'English Description:',
+            description
+        );
+
+        console.log(
+            'Tamil Description:',
+            descriptionTa
+        );
+
+
+        // ==========================================
+        // ID
+        // ==========================================
+
+        if (!id) {
+            return res.apiResponse(
+                false,
+                'Id is missing',
+                {},
+                400
+            );
+        }
+
+
+        // ==========================================
+        // FIND PRODUCT
+        // ==========================================
+
+        const product =
+            await Product.findOne({
+                id: id
+            });
+
+
+        if (!product) {
+            return res.apiResponse(
+                false,
+                'Product Not Found',
+                {},
+                404
+            );
+        }
+
+
+        // ==========================================
+        // VALIDATION
+        // ==========================================
+
+        if (!name) {
+            return res.apiResponse(
+                false,
+                'English Product Name is missing',
+                {},
+                400
+            );
+        }
+
+
+        if (!nameTa) {
+            return res.apiResponse(
+                false,
+                'Tamil Product Name is missing',
+                {},
+                400
+            );
+        }
+
+
+        if (!description) {
+            return res.apiResponse(
+                false,
+                'English Description is missing',
+                {},
+                400
+            );
+        }
+
+
+        if (!descriptionTa) {
+            return res.apiResponse(
+                false,
+                'Tamil Description is missing',
+                {},
+                400
+            );
+        }
+
+
+        // ==========================================
+        // MOM TYPE
+        // ==========================================
+
+        const validMomTypes = [
+            'newMom',
+            'pregMom'
+        ];
+
+
+        if (momType) {
+
+            if (
+                !validMomTypes.includes(
+                    momType
+                )
+            ) {
+
+                return res.apiResponse(
+                    false,
+                    `Invalid momType. Must be one of: ${validMomTypes.join(', ')}`,
+                    {},
+                    400
+                );
+            }
+        }
+
+
+        // ==========================================
+        // STATUS
+        // ==========================================
+
+        const validStatuses = [
+            'Active',
+            'Inactive'
+        ];
+
+
+        if (status) {
+
+            if (
+                !validStatuses.includes(
+                    status
+                )
+            ) {
+
+                return res.apiResponse(
+                    false,
+                    `Invalid status. Must be one of: ${validStatuses.join(', ')}`,
+                    {},
+                    400
+                );
+            }
+        }
+
+
+        // ==========================================
+        // FINAL PRICE
+        // ==========================================
+
+        const finalActualPrice =
+            actualPrice !== undefined
+                ? actualPrice
+                : product.actualPrice;
+
+
+        const finalDiscount =
+            discountPercentage !== undefined
+                ? discountPercentage
+                : product.discountPercentage;
+
+
+        const price = Math.round(
+            finalActualPrice -
+            (
+                finalActualPrice *
+                finalDiscount /
+                100
+            )
+        );
+
+
+        // ==========================================
+        // UPDATE FIELDS
+        // ==========================================
+
+        const updateFields = {
+
+            // Existing English fields
+            name: name,
+
+            description: description,
+
+            actualPrice:
+                finalActualPrice,
+
+            discountPercentage:
+                finalDiscount,
+
+            price: price,
+
+            momType:
+                momType ||
+                product.momType,
+
+            status:
+                status ||
+                product.status,
+
+
+            // ======================================
+            // ENGLISH + TAMIL
+            // ======================================
+
+            translations: {
+
+                en: {
+                    name: name,
+                    description: description
+                },
+
+                ta: {
+                    name: nameTa,
+                    description: descriptionTa
+                }
+
+            }
+
+        };
+
+
+        // ==========================================
+        // FILES
+        // ==========================================
+
+        const uploadedFiles = [];
+
+
+        if (req.files) {
+
+            for (const file of req.files) {
+
+                const result =
+                    await uploadToCloudinary(
+                        file,
+                        'products'
+                    );
+
+                uploadedFiles.push({
+
+                    public_id:
+                        result.public_id,
+
+                    url:
+                        result.secure_url,
+
+                    fileChanged: false
+
+                });
+            }
+        }
+
+
+        // ==========================================
+        // OLD FILES
+        // ==========================================
+
+        let finalOldFiles = [];
+
+        let oldFiles =
+            req.body.oldFiles;
+
+
+        // Parse JSON
+        if (
+            typeof oldFiles === 'string'
+        ) {
+
+            try {
+
+                oldFiles =
+                    JSON.parse(oldFiles);
+
+            } catch (e) {
+
+                console.error(
+                    'Invalid JSON in oldFiles'
+                );
+
+                oldFiles = [];
+            }
+        }
+
+
+        // Keep / delete old files
+        if (Array.isArray(oldFiles)) {
+
+            for (
+                const file
+                of oldFiles
+            ) {
+
+                const isChanged =
+                    file.fileChanged === true ||
+                    file.fileChanged === 'true';
+
+
+                if (
+                    isChanged &&
+                    file.public_id
+                ) {
+
+                    await deleteFromCloudinary(
+                        file.public_id
+                    );
+
+                } else {
+
+                    finalOldFiles.push(
+                        file
+                    );
+                }
+            }
+
+        } else {
+
+            // If oldFiles not sent,
+            // keep existing files
+
+            finalOldFiles =
+                product.files || [];
+        }
+
+
+        // ==========================================
+        // MERGE FILES
+        // ==========================================
+
+        const updatedFilesArray =
+            finalOldFiles.concat(
+                uploadedFiles
+            );
+
+
+        updateFields.files =
+            updatedFilesArray;
+
+
+        // ==========================================
+        // DATABASE UPDATE
+        // ==========================================
+
+        const updatedProduct =
+            await Product.findOneAndUpdate(
+
+                {
+                    id: id
+                },
+
+                {
+                    $set: updateFields
+                },
+
+                {
+                    new: true,
+                    runValidators: true
+                }
+            );
+
+
+        if (!updatedProduct) {
+
+            return res.apiResponse(
+                false,
+                'Product not found',
+                {},
+                404
+            );
+        }
+
+
+        console.log(
+            'UPDATED PRODUCT:',
+            JSON.stringify(
+                updatedProduct.toObject(),
+                null,
+                2
+            )
+        );
+
+
+        console.log(
+            'UPDATED TAMIL:',
+            updatedProduct
+                .translations
+                ?.ta
+        );
+
+
+        return res.apiResponse(
+            true,
+            'Product updated successfully',
+            updatedProduct,
+            200
+        );
+
+
+    } catch (error) {
+
+        console.error(
+            'Update Product Error:',
+            error
+        );
+
+
+        if (
+            error.name ===
+            'ValidationError'
+        ) {
+
+            return res.apiResponse(
+                false,
+                error.message,
+                {},
+                400
+            );
+        }
+
+
+        return res.apiResponse(
+            false,
+            'Error updating Product',
+            {
+                error: error.message
+            },
+            500
+        );
+    }
 };
+
+// exports.update = async (req, res, next) => {
+//     try {
+//         if (req.body) {
+//             const body = Object(req.body);
+//             const { id, actualPrice, discountPercentage } = body;
+//             if (id === undefined || id === null) {
+//                 return res.apiResponse(false, 'Id is missing', {}, 400);
+//             }
+//             const product = await Product.findOne({ id })
+//             if (!product) {
+//                 return res.apiResponse(false, 'Product Not Found', {}, 404);
+//             }
+
+//             const validMomTypes = ['newMom', 'pregMom'];
+//             const validStatuses = ['Active', 'Inactive'];
+
+//             let updateFields = {};
+//             if (req.body.name) updateFields.name = req.body.name;
+//             if (req.body.momType) {
+//                 if (!validMomTypes.includes(req.body.momType)) {
+//                     return res.apiResponse(false, `Invalid momType. Must be one of: ${validMomTypes.join(', ')}`, {}, 400);
+//                 }
+//                 updateFields.momType = req.body.momType;
+//             }
+//             // if (req.body.price) updateFields.price = req.body.price;
+//             // if (req.body.actualPrice) updateFields.actualPrice = req.body.actualPrice;
+//             // if (req.body.discountPercentage) updateFields.discountPercentage = req.body.discountPercentage;
+//             if (req.body.description) updateFields.description = req.body.description;
+//             if (req.body.status) {
+//                 if (!validStatuses.includes(req.body.status)) {
+//                     return res.apiResponse(false, `Invalid status. Must be one of: ${validStatuses.join(', ')}`, {}, 400);
+//                 }
+//                 updateFields.status = req.body.status;
+//             }
+
+//             const finalActualPrice = actualPrice !== undefined ? actualPrice : product.actualPrice;
+//             console.log('finalActualPrice', finalActualPrice)
+//             const finalDiscount = discountPercentage !== undefined ? discountPercentage : product.discountPercentage;
+//             console.log('finalDiscount', finalDiscount)
+
+//             // Calculate final price (no decimals)
+//             const price = Math.round(finalActualPrice - (finalActualPrice * finalDiscount / 100));
+//             updateFields.actualPrice = finalActualPrice;
+//             updateFields.discountPercentage = finalDiscount;
+//             updateFields.price = price;
+//             const uploadedFiles = [];
+//             if (req.files) {
+//                 for (const file of req.files) {
+//                     const result = await uploadToCloudinary(file, 'products');
+//                     uploadedFiles.push({
+//                         public_id: result.public_id,
+//                         url: result.secure_url,
+//                         fileChanged: false,
+//                     });
+//                 }
+//             }
+
+//             let finalOldFiles = [];
+//             let oldFiles = req.body.oldFiles;
+
+//             // Step 1: Parse oldFiles if it's a JSON string
+//             if (typeof oldFiles === 'string') {
+//                 try {
+//                     oldFiles = JSON.parse(oldFiles);
+//                 } catch (e) {
+//                     console.error('Invalid JSON in oldFiles');
+//                     oldFiles = [];
+//                 }
+//             }
+
+//             // Step 2: Handle oldFiles logic
+//             if (Array.isArray(oldFiles)) {
+//                 for (const file of oldFiles) {
+//                     const isChanged = file.fileChanged === true || file.fileChanged === 'true';
+//                     if (isChanged && file.public_id) {
+//                         await deleteFromCloudinary(file.public_id); // Remove from Cloudinary
+//                     } else {
+//                         finalOldFiles.push(file); // Retain file if not changed
+//                     }
+//                 }
+//             } else {
+//                 // If no oldFiles sent, retain existing product files
+//                 finalOldFiles = product.files || [];
+//             }
+
+//             // Step 3: Merge all
+//             const updatedFilesArray = finalOldFiles.concat(uploadedFiles);
+
+//             // Step 4: Set the update
+//             // updateFields = {
+//             updateFields.files = updatedFilesArray;
+//             // };
+
+//             const updatedProduct = await Product.findOneAndUpdate(
+//                 { id },
+//                 { $set: updateFields },
+//                 { new: true, runValidators: true }
+//             );
+//             if (!updatedProduct) {
+//                 return res.apiResponse(false, 'Product not found', {}, 404);
+//             }
+//             return res.apiResponse(true, 'Product updated successfully', updatedProduct, 200);
+//         } else {
+//             return res.apiResponse(false, 'Payload is missing', {}, 400);
+//         }
+//     } catch (error) {
+//         console.error('Update Error:', error);
+//         if (error.name === 'ValidationError') {
+//             return res.apiResponse(false, error.message, {}, 400);
+//         }
+//         return res.apiResponse(false, 'Error updating Product', {}, 500);
+//     }
+
+// };
 
 exports.delete = async (req, res, next) => {
     try {

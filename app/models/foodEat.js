@@ -1,7 +1,8 @@
-const mongoose = require('mongoose')
-const mongoosePaginate = require('mongoose-paginate-v2')
+const mongoose = require('mongoose');
+const mongoosePaginate = require('mongoose-paginate-v2');
 
 const foodEatSchema = new mongoose.Schema({
+
     id: String,
     title: String,
     file: String,
@@ -15,23 +16,34 @@ const foodEatSchema = new mongoose.Schema({
     duration: String,
     protein: String,
     region: String,
+
+    // English + Tamil
+    translations: {
+        type: mongoose.Schema.Types.Mixed,
+        default: () => ({
+            en: {},
+            ta: {}
+        })
+    },
+
     status: {
         type: String,
         default: "Active",
     },
+
 }, {
     toJSON: { virtuals: true },
     toObject: { virtuals: true },
     timestamps: true
-})
+});
 
 foodEatSchema.virtual('category', {
     ref: 'FoodEatCategory',
     localField: 'categoryId',
     foreignField: 'id',
     justOne: true
-})
+});
 
-foodEatSchema.plugin(mongoosePaginate)
+foodEatSchema.plugin(mongoosePaginate);
 
-module.exports = mongoose.model('FoodEat', foodEatSchema)
+module.exports = mongoose.model('FoodEat', foodEatSchema);
