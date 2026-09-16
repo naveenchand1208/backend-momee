@@ -7,6 +7,14 @@ function localizeValue(value, language = 'en') {
         return value;
     }
 
+    // MongoDB ObjectId (e.g. _id fields). Without this, it falls through to
+    // the generic object walk below and gets serialized as its internal
+    // buffer ({"buffer":{"0":105,...}}) instead of staying a hex string —
+    // breaking every client that expects _id to be a String.
+    if (value && typeof value.toHexString === 'function') {
+        return value.toHexString();
+    }
+
     if (Array.isArray(value)) {
         return value.map((item) =>
             localizeValue(item, language)
