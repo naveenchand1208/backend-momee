@@ -11,7 +11,8 @@ const authorization = async (req, res, next) => {
     //New user allow user api's 
     if (req.path == '/api/auth/register' || req.path == '/api/auth/login' ||
         req.path == '/api/auth/getToken' || req.path == '/api/auth/verifyEmail' || req.path == '/api/webhook/razorpay-webhook' || req.path == '/api/auth/decodeToken' || req.path == '/api/webhooks/revenuecat' ||
-        req.path == '/api/whatsapp/connect' || req.path == '/api/whatsapp/callback' ) {
+        req.path == '/api/whatsapp/connect' || req.path == '/api/whatsapp/callback' ||
+        req.path == '/api/appUpdate/check' ) {
         return next()
     }
     // to allow only regigstered user
