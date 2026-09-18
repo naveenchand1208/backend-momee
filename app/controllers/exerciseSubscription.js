@@ -214,22 +214,151 @@ exports.list = async (req, res, next) => {
         return res.apiResponse(false, 'Get list error', {}, 500);
     }
 }
-
 exports.view = async (req, res, next) => {
     try {
-        var requests = req.bodyParams;
-        if (!requests.id) {
-            return res.apiResponse(false, 'Id is missing', {}, 400);
+
+        // Get params safely
+        const requests =
+            req.bodyParams?.params ||
+            req.bodyParams ||
+            req.body?.params ||
+            req.body;
+
+        console.log(
+            '========== EXERCISE PLAN VIEW REQUEST =========='
+        );
+        console.log(
+            JSON.stringify(requests, null, 2)
+        );
+
+        if (!requests?.id) {
+            return res.apiResponse(
+                false,
+                'Id is missing',
+                {},
+                400
+            );
         }
-        const plan = await ExercisePlan.findOne({ id: requests.id })
+
+        const plan = await ExercisePlan.findOne({
+            id: requests.id
+        }).lean();
+
         if (!plan) {
-            return res.apiResponse(false, 'plan not found', {}, 404);
+            return res.apiResponse(
+                false,
+                'plan not found',
+                {},
+                404
+            );
         }
-        return res.apiResponse(true, 'Success', plan, 200);
+
+        console.log(
+            '========== EXERCISE PLAN FROM MONGODB =========='
+        );
+        console.log(
+            JSON.stringify(plan, null, 2)
+        );
+
+        // Get Tamil from either location
+        const tamilName =
+            plan.planNameTa ||
+            plan?.translations?.ta?.name ||
+            '';
+
+        const englishName =
+            plan.planName ||
+            plan?.translations?.en?.name ||
+            '';
+
+        const planData = {
+            ...plan,
+
+            // Direct fields for admin
+            planName: englishName,
+            planNameTa: tamilName,
+
+            // Keep both translations
+            translations: {
+                ...(plan.translations || {}),
+
+                en: {
+                    ...(plan.translations?.en || {}),
+                    name: englishName
+                },
+
+                ta: {
+                    ...(plan.translations?.ta || {}),
+                    name: tamilName
+                }
+            },
+
+            // Tell global localization not to change this admin response
+            __skipLocalization: true
+        };
+
+        console.log(
+            '========== FINAL RESPONSE =========='
+        );
+        console.log(
+            'English:',
+            planData.planName
+        );
+        console.log(
+            'Tamil:',
+            planData.planNameTa
+        );
+        console.log(
+            'Translations:',
+            JSON.stringify(
+                planData.translations,
+                null,
+                2
+            )
+        );
+        console.log(
+            '===================================='
+        );
+
+        return res.apiResponse(
+            true,
+            'Success',
+            planData,
+            200
+        );
+
     } catch (error) {
-        return res.apiResponse(false, 'get plan error', {}, 500)
+
+        console.error(
+            'Exercise Plan View Error:',
+            error
+        );
+
+        return res.apiResponse(
+            false,
+            'get plan error',
+            {},
+            500
+        );
     }
-}
+};
+
+
+// exports.view = async (req, res, next) => {
+//     try {
+//         var requests = req.bodyParams;
+//         if (!requests.id) {
+//             return res.apiResponse(false, 'Id is missing', {}, 400);
+//         }
+//         const plan = await ExercisePlan.findOne({ id: requests.id })
+//         if (!plan) {
+//             return res.apiResponse(false, 'plan not found', {}, 404);
+//         }
+//         return res.apiResponse(true, 'Success', plan, 200);
+//     } catch (error) {
+//         return res.apiResponse(false, 'get plan error', {}, 500)
+//     }
+// }
 
 exports.update = async (req, res, next) => {
     try {

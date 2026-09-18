@@ -293,7 +293,6 @@ app.use((req, res, next) => {
 app.use((req, res, next) => {
 
     const originalJson = res.json.bind(res);
-
     res.json = (body) => {
 
         try {

@@ -325,29 +325,22 @@ exports.view = async (req, res, next) => {
     try {
 
         var requests = req.bodyParams;
-
         if (!requests.id) {
             return res.apiResponse(false, 'Id is missing', {}, 400);
         }
-
         const plan = await Plan.findOne({ id: requests.id });
-
         if (!plan) {
             return res.apiResponse(false, 'plan not found', {}, 404);
         }
-
         const planData = plan.toObject();
-
         // Admin edit page needs both English and Tamil
         if (requests.admin === true) {
             planData.__skipLocalization = true;
         }
-
         return res.apiResponse(true, 'Success', planData, 200);
 
     } catch (error) {
         console.log('get plan error:', error);
-
         return res.apiResponse(false, 'get plan error', {}, 500);
     }
 };

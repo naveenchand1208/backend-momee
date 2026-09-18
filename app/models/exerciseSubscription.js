@@ -4,6 +4,7 @@ const mongoosePaginate = require('mongoose-paginate-v2')
 const exerciseSubscriptionSchema = new mongoose.Schema({
     id: String,
     planName: String,
+    planNameTa: String,
     planAmount: String,
     durationMonths: String,
     // features: Array,

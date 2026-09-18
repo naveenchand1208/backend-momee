@@ -416,30 +416,131 @@ exports.list = async (req, res, next) => {
 
 exports.view = async (req, res, next) => {
     try {
+
         const requests = req.bodyParams;
+
         if (!requests.id) {
             return res.apiResponse(false, 'Id is missing', {}, 400);
         }
-        const article = await Article.findOne({ id: requests.id });
+
+        const article = await Article.findOne({
+            id: requests.id
+        }).lean();
+
         if (!article) {
-            return res.apiResponse(false, 'Article not found', {}, 404);
+            return res.apiResponse(
+                false,
+                'Article not found',
+                {},
+                404
+            );
         }
+
         const userId = req.userDetails.id;
+
         const alreadyViewed = article.views.some(
-            (view) => view.userId.toString() === userId.toString()
+            (view) =>
+                view.userId.toString() === userId.toString()
         );
+
         if (!alreadyViewed) {
-            article.views.push({ userId, viewed: true });
-            article.viewsCount = article.views.length;
-            await article.save();
+
+            // Need actual mongoose document for save
+            const articleDoc = await Article.findOne({
+                id: requests.id
+            });
+
+            articleDoc.views.push({
+                userId,
+                viewed: true
+            });
+
+            articleDoc.viewsCount =
+                articleDoc.views.length;
+
+            await articleDoc.save();
         }
+
+        // Don't send user view details to frontend
         article.views = [];
-        return res.apiResponse(true, 'Success', article, 200);
+
+        // ==========================================
+        // ADMIN VIEW
+        // Keep English + Tamil
+        // ==========================================
+
+        article.__skipLocalization = true;
+
+        console.log(
+            "ARTICLE TITLE EN:",
+            article.title
+        );
+
+        console.log(
+            "ARTICLE TITLE TA:",
+            article?.translations?.ta?.title
+        );
+
+        console.log(
+            "ARTICLE TRANSLATIONS:",
+            JSON.stringify(
+                article.translations,
+                null,
+                2
+            )
+        );
+
+        return res.apiResponse(
+            true,
+            'Success',
+            article,
+            200
+        );
+
     } catch (error) {
-        console.error('Article View Error:', error);
-        return res.apiResponse(false, 'Get Article error', { message: error.message }, 500);
+
+        console.error(
+            'Article View Error:',
+            error
+        );
+
+        return res.apiResponse(
+            false,
+            'Get Article error',
+            {
+                message: error.message
+            },
+            500
+        );
     }
-}
+};
+
+// exports.view = async (req, res, next) => {
+//     try {
+//         const requests = req.bodyParams;
+//         if (!requests.id) {
+//             return res.apiResponse(false, 'Id is missing', {}, 400);
+//         }
+//         const article = await Article.findOne({ id: requests.id });
+//         if (!article) {
+//             return res.apiResponse(false, 'Article not found', {}, 404);
+//         }
+//         const userId = req.userDetails.id;
+//         const alreadyViewed = article.views.some(
+//             (view) => view.userId.toString() === userId.toString()
+//         );
+//         if (!alreadyViewed) {
+//             article.views.push({ userId, viewed: true });
+//             article.viewsCount = article.views.length;
+//             await article.save();
+//         }
+//         article.views = [];
+//         return res.apiResponse(true, 'Success', article, 200);
+//     } catch (error) {
+//         console.error('Article View Error:', error);
+//         return res.apiResponse(false, 'Get Article error', { message: error.message }, 500);
+//     }
+// }
 
 exports.update = async (req, res, next) => {
     try {

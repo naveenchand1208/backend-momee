@@ -136,27 +136,61 @@ exports.list = async (req, res, next) => {
             }
             return res.apiResponse(true, "Success", { docs: plans }, 200);
         }
-
     } catch (error) {
         return res.apiResponse(false, 'Get list error', {}, 500);
     }
 }
 
+// exports.view = async (req, res, next) => {
+//     try {
+//         var requests = req.bodyParams;
+//         if (!requests.id) {
+//             return res.apiResponse(false, 'Id is missing', {}, 400);
+//         }
+//         const plan = await DietPlan.findOne({ id: requests.id })
+//         if (!plan) {
+//             return res.apiResponse(false, 'plan not found', {}, 404);
+//         }
+//         return res.apiResponse(true, 'Success', plan, 200);
+//     } catch (error) {
+//         return res.apiResponse(false, 'get plan error', {}, 500)
+//     }
+// }
 exports.view = async (req, res, next) => {
     try {
-        var requests = req.bodyParams;
+        const requests = req.bodyParams;
+
         if (!requests.id) {
             return res.apiResponse(false, 'Id is missing', {}, 400);
         }
-        const plan = await DietPlan.findOne({ id: requests.id })
+
+        const plan = await DietPlan.findOne({ id: requests.id });
+
         if (!plan) {
             return res.apiResponse(false, 'plan not found', {}, 404);
         }
-        return res.apiResponse(true, 'Success', plan, 200);
+
+        const planData = plan.toObject();
+
+        planData.planNameTa =
+            planData.translations?.ta?.name || '';
+
+        console.log('========== DIET PLAN ==========');
+        console.log('English:', planData.planName);
+        console.log('Tamil:', planData.planNameTa);
+        console.log('Translations:', planData.translations);
+
+        if (requests.admin === true) {
+            planData.__skipLocalization = true;
+        }
+
+        return res.apiResponse(true, 'Success', planData, 200);
+
     } catch (error) {
-        return res.apiResponse(false, 'get plan error', {}, 500)
+        console.log('get plan error:', error);
+        return res.apiResponse(false, 'get plan error', {}, 500);
     }
-}
+};
 
 exports.update = async (req, res, next) => {
     try {
@@ -197,7 +231,6 @@ exports.delete = async (req, res, next) => {
             return res.apiResponse(false, 'Id is missing', {}, 400);
         }
         const result = await DietPlan.deleteOne({ id: requests.id });
-
         if (result.deletedCount === 0) {
             return res.apiResponse(false, 'Plan not found', {}, 404)
         }
