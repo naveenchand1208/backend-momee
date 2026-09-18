@@ -23,7 +23,7 @@ function localizeValue(value, language = 'en') {
 
     const result = {};
 
-    // First copy normal fields
+    // First copy all normal fields
     for (const [key, val] of Object.entries(value)) {
         if (key === 'translations') {
             continue;
@@ -32,7 +32,12 @@ function localizeValue(value, language = 'en') {
         result[key] = localizeValue(val, language);
     }
 
-    // Then apply selected language
+    // English = keep original API response
+    if (language === 'en') {
+        return result;
+    }
+
+    // Tamil = apply Tamil translations
     const translations = value.translations;
 
     if (
@@ -40,9 +45,7 @@ function localizeValue(value, language = 'en') {
         typeof translations === 'object' &&
         !Array.isArray(translations)
     ) {
-        const selected =
-            translations[language] ||
-            translations.en;
+        const selected = translations[language];
 
         if (
             selected &&
@@ -50,10 +53,18 @@ function localizeValue(value, language = 'en') {
             !Array.isArray(selected)
         ) {
             for (const [key, translatedValue] of Object.entries(selected)) {
-                result[key] = localizeValue(
-                    translatedValue,
-                    language
-                );
+
+                // Only replace when Tamil value actually exists
+                if (
+                    translatedValue !== null &&
+                    translatedValue !== undefined &&
+                    translatedValue !== ''
+                ) {
+                    result[key] = localizeValue(
+                        translatedValue,
+                        language
+                    );
+                }
             }
         }
     }
@@ -65,6 +76,77 @@ module.exports = {
     localizeValue
 };
 
+
+// function localizeValue(value, language = 'en') {
+//     if (value === null || value === undefined) {
+//         return value;
+//     }
+
+//     if (value instanceof Date) {
+//         return value;
+//     }
+
+//     if (Array.isArray(value)) {
+//         return value.map((item) =>
+//             localizeValue(item, language)
+//         );
+//     }
+
+//     if (typeof value !== 'object') {
+//         return value;
+//     }
+
+//     if (value && typeof value.toObject === 'function') {
+//         value = value.toObject();
+//     }
+
+//     const result = {};
+
+//     // First copy normal fields
+//     for (const [key, val] of Object.entries(value)) {
+//         if (key === 'translations') {
+//             continue;
+//         }
+
+//         result[key] = localizeValue(val, language);
+//     }
+
+//     // Then apply selected language
+//     const translations = value.translations;
+
+//     if (
+//         translations &&
+//         typeof translations === 'object' &&
+//         !Array.isArray(translations)
+//     ) {
+//         const selected =
+//             translations[language] ||
+//             translations.en;
+
+//         if (
+//             selected &&
+//             typeof selected === 'object' &&
+//             !Array.isArray(selected)
+//         ) {
+//             for (const [key, translatedValue] of Object.entries(selected)) {
+//                 result[key] = localizeValue(
+//                     translatedValue,
+//                     language
+//                 );
+//             }
+//         }
+//     }
+
+//     return result;
+// }
+
+// module.exports = {
+//     localizeValue
+// };
+
+
+
+//////////old/////////
 // function localizeValue(value, language = 'en') {
 
 //     if (value === null || value === undefined) {
