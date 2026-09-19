@@ -323,19 +323,97 @@ exports.list = async (req, res, next) => {
 
 exports.view = async (req, res, next) => {
     try {
-        var requests = req.bodyParams;
-        if (!requests.id) {
-            return res.apiResponse(false, 'Id is missing', {}, 400);
+
+        const requests = req.bodyParams;
+
+        if (!requests?.id) {
+            return res.apiResponse(
+                false,
+                'Id is missing',
+                {},
+                400
+            );
         }
-        const book = await Book.findOne({ id: requests.id })
+
+        const book = await Book.findOne({
+            id: requests.id
+        }).lean();
+
         if (!book) {
-            return res.apiResponse(false, 'Book not found', {}, 404);
+            return res.apiResponse(
+                false,
+                'Book not found',
+                {},
+                404
+            );
         }
-        return res.apiResponse(true, 'Success', book, 200);
+
+        // English title
+        const englishTitle =
+            book?.title ||
+            book?.translations?.en?.title ||
+            '';
+
+        // Tamil title
+        const tamilTitle =
+            book?.translations?.ta?.title ||
+            '';
+
+        const responseData = {
+            ...book,
+
+            title: englishTitle,
+
+            // Tamil value for admin input
+            titleTa: tamilTitle,
+
+            translations: {
+                en: {
+                    title: englishTitle
+                },
+                ta: {
+                    title: tamilTitle
+                }
+            },
+
+            // Prevent global localization from changing admin response
+            __skipLocalization: true
+        };
+        return res.apiResponse(
+            true,
+            'Success',
+            responseData,
+            200
+        );
+
     } catch (error) {
-        return res.apiResponse(false, 'get Book error', {}, 500)
+
+        console.error('Book View Error:', error);
+
+        return res.apiResponse(
+            false,
+            'get Book error',
+            {},
+            500
+        );
     }
-}
+};
+
+// exports.view = async (req, res, next) => {
+//     try {
+//         var requests = req.bodyParams;
+//         if (!requests.id) {
+//             return res.apiResponse(false, 'Id is missing', {}, 400);
+//         }
+//         const book = await Book.findOne({ id: requests.id })
+//         if (!book) {
+//             return res.apiResponse(false, 'Book not found', {}, 404);
+//         }
+//         return res.apiResponse(true, 'Success', book, 200);
+//     } catch (error) {
+//         return res.apiResponse(false, 'get Book error', {}, 500)
+//     }
+// }
 
 exports.update = async (req, res, next) => {
     try {
