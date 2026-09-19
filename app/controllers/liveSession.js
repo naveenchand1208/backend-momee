@@ -405,19 +405,139 @@ exports.list = async (req, res, next) => {
 
 exports.view = async (req, res, next) => {
     try {
-        var requests = req.bodyParams;
-        if (!requests.id) {
-            return res.apiResponse(false, 'Id is missing', {}, 400);
+        const requests = req.bodyParams;
+
+        if (!requests?.id) {
+            return res.apiResponse(
+                false,
+                'Id is missing',
+                {},
+                400
+            );
         }
-        const session = await LiveSession.findOne({ id: requests.id })
+
+        const session = await LiveSession
+            .findOne({ id: requests.id })
+            .lean();
+
         if (!session) {
-            return res.apiResponse(false, 'Session not found', {}, 404);
+            return res.apiResponse(
+                false,
+                'Session not found',
+                {},
+                404
+            );
         }
-        return res.apiResponse(true, 'Success', session, 200);
+
+        // ==========================================
+        // ENGLISH VALUES
+        // ==========================================
+
+        const englishName =
+            session?.translations?.en?.name ||
+            session?.name ||
+            '';
+
+        const englishPerformedBy =
+            session?.translations?.en?.performedBy ||
+            session?.performedBy ||
+            '';
+
+        const englishDescription =
+            session?.translations?.en?.description ||
+            session?.description ||
+            '';
+
+        // ==========================================
+        // TAMIL VALUES
+        // ==========================================
+
+        const tamilName =
+            session?.translations?.ta?.name ||
+            session?.nameTa ||
+            '';
+
+        const tamilPerformedBy =
+            session?.translations?.ta?.performedBy ||
+            session?.performedByTa ||
+            '';
+
+        const tamilDescription =
+            session?.translations?.ta?.description ||
+            session?.descriptionTa ||
+            '';
+
+        // ==========================================
+        // NORMAL ENGLISH FIELDS
+        // ==========================================
+
+        session.name = englishName;
+        session.performedBy = englishPerformedBy;
+        session.description = englishDescription;
+
+        // ==========================================
+        // ADMIN TAMIL FIELDS
+        // ==========================================
+
+        session.nameTa = tamilName;
+        session.performedByTa = tamilPerformedBy;
+        session.descriptionTa = tamilDescription;
+
+        // ==========================================
+        // KEEP BOTH TRANSLATIONS
+        // ==========================================
+
+        session.translations = {
+            en: {
+                name: englishName,
+                performedBy: englishPerformedBy,
+                description: englishDescription
+            },
+            ta: {
+                name: tamilName,
+                performedBy: tamilPerformedBy,
+                description: tamilDescription
+            }
+        };
+
+        // ==========================================
+        // SKIP GLOBAL LOCALIZATION FOR ADMIN VIEW
+        // ==========================================
+
+        session.__skipLocalization = true;
+        return res.apiResponse(
+            true,
+            'Success',
+            session,
+            200
+        );
+
     } catch (error) {
-        return res.apiResponse(false, 'get Session error', {}, 500)
+        console.error('Get Live Session Error:', error);
+
+        return res.apiResponse(
+            false,
+            'get Session error',
+            {},
+            500
+        );
     }
-}
+};
+// exports.view = async (req, res, next) => {
+//     try {
+//         var requests = req.bodyParams;
+//         if (!requests.id) {
+//             return res.apiResponse(false, 'Id is missing', {}, 400);
+//         }
+//         const session = await LiveSession.findOne({ id: requests.id })
+//         if (!session) {
+//             return res.apiResponse(false, 'Session not found', {}, 404);
+//         }
+//         return res.apiResponse(true, 'Success', session, 200);
+//     } catch (error) {
+//         return res.apiResponse(false, 'get Session error', {}, 500)
+//     }
+// }
 
 exports.update = async (req, res, next) => {
     try {
