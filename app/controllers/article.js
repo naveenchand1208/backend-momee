@@ -416,11 +416,15 @@ exports.list = async (req, res, next) => {
 
 exports.view = async (req, res, next) => {
     try {
-
         const requests = req.bodyParams;
 
         if (!requests.id) {
-            return res.apiResponse(false, 'Id is missing', {}, 400);
+            return res.apiResponse(
+                false,
+                'Id is missing',
+                {},
+                400
+            );
         }
 
         const article = await Article.findOne({
@@ -444,8 +448,6 @@ exports.view = async (req, res, next) => {
         );
 
         if (!alreadyViewed) {
-
-            // Need actual mongoose document for save
             const articleDoc = await Article.findOne({
                 id: requests.id
             });
@@ -461,28 +463,90 @@ exports.view = async (req, res, next) => {
             await articleDoc.save();
         }
 
-        // Don't send user view details to frontend
+        // Don't send view users to admin
         article.views = [];
 
         // ==========================================
-        // ADMIN VIEW
-        // Keep English + Tamil
+        // TAMIL VALUES
+        // ==========================================
+
+        const tamilTitle =
+            article.translations &&
+            article.translations.ta
+                ? article.translations.ta.title || ''
+                : '';
+
+        const tamilDescription =
+            article.translations &&
+            article.translations.ta
+                ? article.translations.ta.description || ''
+                : '';
+
+        // ==========================================
+        // ADMIN TAMIL VALUES
+        // ==========================================
+
+        article.titleTa = tamilTitle;
+
+        article.descriptionTa = tamilDescription;
+
+        // Keep translations also available
+        article.translations = {
+            en: {
+                title:
+                    article.translations?.en?.title ||
+                    article.title ||
+                    '',
+
+                description:
+                    article.translations?.en?.description ||
+                    article.description ||
+                    ''
+            },
+
+            ta: {
+                title: tamilTitle,
+                description: tamilDescription
+            }
+        };
+
+        // ==========================================
+        // STOP GLOBAL LOCALIZATION
         // ==========================================
 
         article.__skipLocalization = true;
 
+        // ==========================================
+        // DEBUG
+        // ==========================================
+
         console.log(
-            "ARTICLE TITLE EN:",
+            'ARTICLE ID:',
+            article.id
+        );
+
+        console.log(
+            'ARTICLE EN TITLE:',
             article.title
         );
 
         console.log(
-            "ARTICLE TITLE TA:",
-            article?.translations?.ta?.title
+            'ARTICLE TA TITLE:',
+            tamilTitle
         );
 
         console.log(
-            "ARTICLE TRANSLATIONS:",
+            'ARTICLE EN DESCRIPTION:',
+            article.description
+        );
+
+        console.log(
+            'ARTICLE TA DESCRIPTION:',
+            tamilDescription
+        );
+
+        console.log(
+            'ARTICLE TRANSLATIONS:',
             JSON.stringify(
                 article.translations,
                 null,
@@ -498,7 +562,6 @@ exports.view = async (req, res, next) => {
         );
 
     } catch (error) {
-
         console.error(
             'Article View Error:',
             error

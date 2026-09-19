@@ -220,85 +220,405 @@ exports.list = async (req, res, next) => {
         return res.apiResponse(false, 'Get list error', {}, 500);
     }
 }
+
 exports.view = async (req, res, next) => {
     try {
-        var requests = req.bodyParams;
+        const requests = req.bodyParams;
+
         if (!requests.id) {
-            return res.apiResponse(false, 'Id is missing', {}, 400);
+            return res.apiResponse(
+                false,
+                'Id is missing',
+                {},
+                400
+            );
         }
-        const animations = await BabyAnimation.findOne({ id: requests.id })
-        if (!animations) {
-            return res.apiResponse(false, 'BabyAnimation not found', {}, 404);
+
+        const animation = await BabyAnimation
+            .findOne({ id: requests.id })
+            .lean();
+
+        if (!animation) {
+            return res.apiResponse(
+                false,
+                'BabyAnimation not found',
+                {},
+                404
+            );
         }
-        return res.apiResponse(true, 'Success', animations, 200);
+
+        // ==========================================
+        // GET EXISTING TAMIL
+        // ==========================================
+
+        let tamilName =
+            animation?.translations?.ta?.name ||
+            animation?.nameTa ||
+            '';
+
+        // ==========================================
+        // AUTO CREATE TAMIL FOR WEEK TITLES
+        // ==========================================
+
+        if (!tamilName && animation?.name) {
+
+            const weekMatch = animation.name.match(
+                /^Week\s+(\d+)$/i
+            );
+
+            if (weekMatch) {
+                const weekNumber = weekMatch[1];
+
+                tamilName = `வாரம் ${weekNumber}`;
+            }
+        }
+
+        // ==========================================
+        // SEND TAMIL TO ADMIN FORM
+        // ==========================================
+
+        animation.nameTa = tamilName;
+
+        animation.translations = {
+            en: {
+                name:
+                    animation?.translations?.en?.name ||
+                    animation?.name ||
+                    ''
+            },
+
+            ta: {
+                name: tamilName
+            }
+        };
+
+        // Prevent global localization
+        animation.__skipLocalization = true;
+
+        // DEBUG
+        console.log('=================================');
+        console.log('BABY ANIMATION ID:', animation.id);
+        console.log('ENGLISH NAME:', animation.name);
+        console.log('TAMIL NAME:', tamilName);
+        console.log(
+            'TRANSLATIONS:',
+            JSON.stringify(animation.translations, null, 2)
+        );
+        console.log('=================================');
+
+        return res.apiResponse(
+            true,
+            'Success',
+            animation,
+            200
+        );
+
     } catch (error) {
-        return res.apiResponse(false, 'get BabyAnimation error', {}, 500)
+
+        console.error(
+            'BabyAnimation View Error:',
+            error
+        );
+
+        return res.apiResponse(
+            false,
+            'get BabyAnimation error',
+            {},
+            500
+        );
     }
-}
+};
+
+// exports.view = async (req, res, next) => {
+//     try {
+//         var requests = req.bodyParams;
+//         if (!requests.id) {
+//             return res.apiResponse(false, 'Id is missing', {}, 400);
+//         }
+//         const animations = await BabyAnimation.findOne({ id: requests.id })
+//         if (!animations) {
+//             return res.apiResponse(false, 'BabyAnimation not found', {}, 404);
+//         }
+//         return res.apiResponse(true, 'Success', animations, 200);
+//     } catch (error) {
+//         return res.apiResponse(false, 'get BabyAnimation error', {}, 500)
+//     }
+// }
+
+// exports.update = async (req, res, next) => {
+//     try {
+//         if (req.body) {
+//             const body = Object(req.body);
+//             const { id, public_id, fileChanged } = body;
+//             if (id === undefined || id === null) {
+//                 return res.apiResponse(false, 'Id is missing', {}, 400);
+//             }
+//             const updateFields = {};
+//             let translations = {};
+//             if (req.body.translations) {
+//                 try {
+//                     translations =
+//                         typeof req.body.translations === 'string'
+//                             ? JSON.parse(req.body.translations)
+//                             : req.body.translations;
+//                 } catch (error) {
+//                     console.error('Invalid translations JSON:', error);
+
+//                     return res.apiResponse(
+//                         false,
+//                         'Invalid translations data',
+//                         {},
+//                         400
+//                     );
+//                 }
+//             }
+//             if (req.body.name) updateFields.name = req.body.name;
+//             updateFields.translations = {
+//                 en: {
+//                     name: req.body.name || ''
+//                 },
+//                 ta: {
+//                     name: translations?.ta?.name || ''
+//                 }
+//             };
+//             if (req.body.babySize) updateFields.babySize = req.body.babySize;
+//             if (req.body.babyWeight) updateFields.babyWeight = req.body.babyWeight;
+//             if (req.body.status) updateFields.status = req.body.status;
+//             if (fileChanged && public_id) {
+//                 await deleteFromCloudinary(public_id);
+//                 if (req.file) {
+//                     const { secure_url, public_id } = await uploadToCloudinary(req.file, 'babyAnimation');
+//                     updateFields.file = secure_url;
+//                     updateFields.public_id = public_id;
+//                 }
+//             }
+//             const updatedAnimation = await BabyAnimation.findOneAndUpdate(
+//                 { id },
+//                 { $set: updateFields },
+//                 { new: true }
+//             );
+//             if (!updatedAnimation) {
+//                 return res.apiResponse(false, 'Animation not found', {}, 404);
+//             }
+//             return res.apiResponse(true, 'Animation updated successfully', updatedAnimation, 200);
+//         } else {
+//             return res.apiResponse(false, 'Payload is missing', {}, 400);
+//         }
+//     } catch (error) {
+//         console.error('Update Error:', error);
+//         return res.apiResponse(false, 'Error updating Animation', {}, 500);
+//     }
+
+// };
+
 exports.update = async (req, res, next) => {
     try {
-        if (req.body) {
-            const body = Object(req.body);
-            const { id, public_id, fileChanged } = body;
-            if (id === undefined || id === null) {
-                return res.apiResponse(false, 'Id is missing', {}, 400);
-            }
-            const updateFields = {};
-            let translations = {};
-            if (req.body.translations) {
-                try {
-                    translations =
-                        typeof req.body.translations === 'string'
-                            ? JSON.parse(req.body.translations)
-                            : req.body.translations;
-                } catch (error) {
-                    console.error('Invalid translations JSON:', error);
+        if (!req.body) {
+            return res.apiResponse(
+                false,
+                'Payload is missing',
+                {},
+                400
+            );
+        }
 
-                    return res.apiResponse(
-                        false,
-                        'Invalid translations data',
-                        {},
-                        400
-                    );
-                }
+        const body = Object(req.body);
+
+        const {
+            id,
+            public_id,
+            fileChanged
+        } = body;
+
+        if (!id) {
+            return res.apiResponse(
+                false,
+                'Id is missing',
+                {},
+                400
+            );
+        }
+
+        // ==========================================
+        // GET TRANSLATIONS
+        // ==========================================
+
+        let translations = {};
+
+        if (req.body.translations) {
+            try {
+                translations =
+                    typeof req.body.translations === 'string'
+                        ? JSON.parse(req.body.translations)
+                        : req.body.translations;
+            } catch (error) {
+                console.error(
+                    'Invalid translations JSON:',
+                    error
+                );
+
+                return res.apiResponse(
+                    false,
+                    'Invalid translations data',
+                    {},
+                    400
+                );
             }
-            if (req.body.name) updateFields.name = req.body.name;
-            updateFields.translations = {
-                en: {
-                    name: req.body.name || ''
-                },
-                ta: {
-                    name: translations?.ta?.name || ''
-                }
-            };
-            if (req.body.babySize) updateFields.babySize = req.body.babySize;
-            if (req.body.babyWeight) updateFields.babyWeight = req.body.babyWeight;
-            if (req.body.status) updateFields.status = req.body.status;
-            if (fileChanged && public_id) {
-                await deleteFromCloudinary(public_id);
-                if (req.file) {
-                    const { secure_url, public_id } = await uploadToCloudinary(req.file, 'babyAnimation');
-                    updateFields.file = secure_url;
-                    updateFields.public_id = public_id;
-                }
+        }
+
+        // ==========================================
+        // GET EXISTING RECORD
+        // ==========================================
+
+        const existingAnimation =
+            await BabyAnimation.findOne({ id });
+
+        if (!existingAnimation) {
+            return res.apiResponse(
+                false,
+                'Animation not found',
+                {},
+                404
+            );
+        }
+
+        // ==========================================
+        // UPDATE FIELDS
+        // ==========================================
+
+        const updateFields = {};
+
+        if (
+            req.body.name !== undefined &&
+            req.body.name !== ''
+        ) {
+            updateFields.name = req.body.name;
+        }
+
+        if (
+            req.body.babySize !== undefined &&
+            req.body.babySize !== ''
+        ) {
+            updateFields.babySize = req.body.babySize;
+        }
+
+        if (
+            req.body.babyWeight !== undefined &&
+            req.body.babyWeight !== ''
+        ) {
+            updateFields.babyWeight = req.body.babyWeight;
+        }
+
+        if (req.body.status) {
+            updateFields.status = req.body.status;
+        }
+
+        // ==========================================
+        // TRANSLATIONS
+        // ==========================================
+
+        updateFields.translations = {
+            en: {
+                name:
+                    req.body.name ||
+                    existingAnimation?.translations?.en?.name ||
+                    existingAnimation?.name ||
+                    ''
+            },
+
+            ta: {
+                name:
+                    translations?.ta?.name ||
+                    req.body.nameTa ||
+                    existingAnimation?.translations?.ta?.name ||
+                    ''
             }
-            const updatedAnimation = await BabyAnimation.findOneAndUpdate(
+        };
+
+        // ==========================================
+        // FILE
+        // ==========================================
+
+        if (fileChanged && public_id) {
+
+            await deleteFromCloudinary(public_id);
+
+            if (req.file) {
+
+                const {
+                    secure_url,
+                    public_id: newPublicId
+                } = await uploadToCloudinary(
+                    req.file,
+                    'babyAnimation'
+                );
+
+                updateFields.file = secure_url;
+                updateFields.public_id = newPublicId;
+            }
+        }
+
+        // ==========================================
+        // DEBUG
+        // ==========================================
+
+        console.log(
+            'UPDATE BABY ANIMATION'
+        );
+
+        console.log(
+            'English:',
+            updateFields.translations.en.name
+        );
+
+        console.log(
+            'Tamil:',
+            updateFields.translations.ta.name
+        );
+
+        // ==========================================
+        // UPDATE DATABASE
+        // ==========================================
+
+        const updatedAnimation =
+            await BabyAnimation.findOneAndUpdate(
                 { id },
                 { $set: updateFields },
-                { new: true }
+                {
+                    new: true
+                }
             );
-            if (!updatedAnimation) {
-                return res.apiResponse(false, 'Animation not found', {}, 404);
-            }
-            return res.apiResponse(true, 'Animation updated successfully', updatedAnimation, 200);
-        } else {
-            return res.apiResponse(false, 'Payload is missing', {}, 400);
-        }
-    } catch (error) {
-        console.error('Update Error:', error);
-        return res.apiResponse(false, 'Error updating Animation', {}, 500);
-    }
 
+        if (!updatedAnimation) {
+            return res.apiResponse(
+                false,
+                'Animation not found',
+                {},
+                404
+            );
+        }
+
+        return res.apiResponse(
+            true,
+            'Animation updated successfully',
+            updatedAnimation,
+            200
+        );
+
+    } catch (error) {
+
+        console.error(
+            'Update Error:',
+            error
+        );
+
+        return res.apiResponse(
+            false,
+            'Error updating Animation',
+            {},
+            500
+        );
+    }
 };
 exports.delete = async (req, res, next) => {
     try {

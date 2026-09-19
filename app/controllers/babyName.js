@@ -44,11 +44,26 @@ exports.add = async (req, res, next) => {
 
         console.log("FINAL TRANSLATIONS:", translations);
 
+        // const newBabyName = new BabyName({
+        //     id: uniqueId,
+        //     name: name,
+        //     type: type,
+        //     translations: translations,
+        //     status: 'Active'
+        // });
         const newBabyName = new BabyName({
             id: uniqueId,
-            name: name,
+            name: name,            
+            nameTa: nameTa,
             type: type,
-            translations: translations,
+            translations: {
+                en: {
+                    name: name
+                },
+                ta: {
+                    name: nameTa
+                }
+            },
             status: 'Active'
         });
 
@@ -172,19 +187,110 @@ exports.list = async (req, res, next) => {
 }
 exports.view = async (req, res, next) => {
     try {
-        var requests = req.bodyParams;
-        if (!requests.id) {
-            return res.apiResponse(false, 'Id is missing', {}, 400);
+        const requests = req.bodyParams;
+
+        if (!requests?.id) {
+            return res.apiResponse(
+                false,
+                'ID is required',
+                {},
+                400
+            );
         }
-        const names = await BabyName.findOne({ id: requests.id })
-        if (!names) {
-            return res.apiResponse(false, 'BabyName not found', {}, 404);
+
+        const babyName = await BabyName.findOne({
+            id: requests.id
+        }).lean();
+
+        if (!babyName) {
+            return res.apiResponse(
+                false,
+                'Baby name not found',
+                {},
+                404
+            );
         }
-        return res.apiResponse(true, 'Success', names, 200);
+
+        const englishName =
+            babyName?.name ||
+            babyName?.translations?.en?.name ||
+            '';
+
+        const tamilName =
+            babyName?.nameTa ||
+            babyName?.translations?.ta?.name ||
+            '';
+
+        const responseData = {
+            id: babyName.id,
+
+            name: englishName,
+
+            // DIRECT TAMIL VALUE
+            nameTa: tamilName,
+
+            type: babyName.type,
+
+            status: babyName.status,
+
+            translations: {
+                en: {
+                    name: englishName
+                },
+                ta: {
+                    name: tamilName
+                }
+            },
+
+            __skipLocalization: true
+        };
+
+        console.log('========== BABY NAME VIEW ==========');
+        console.log('ID:', babyName.id);
+        console.log('ENGLISH:', englishName);
+        console.log('TAMIL:', tamilName);
+        console.log(
+            'FINAL RESPONSE:',
+            JSON.stringify(responseData, null, 2)
+        );
+        console.log('====================================');
+
+        return res.apiResponse(
+            true,
+            'Success',
+            responseData,
+            200
+        );
+
     } catch (error) {
-        return res.apiResponse(false, 'get BabyName error', {}, 500)
+        console.error('Baby Name View Error:', error);
+
+        return res.apiResponse(
+            false,
+            'Baby Name View Error',
+            {},
+            500
+        );
     }
-}
+};
+
+// exports.view = async (req, res, next) => {
+//     try {
+//         var requests = req.bodyParams;
+//         if (!requests.id) {
+//             return res.apiResponse(false, 'Id is missing', {}, 400);
+//         }
+//         const names = await BabyName.findOne({ id: requests.id })
+//         if (!names) {
+//             return res.apiResponse(false, 'BabyName not found', {}, 404);
+//         }
+//         return res.apiResponse(true, 'Success', names, 200);
+//     } catch (error) {
+//         return res.apiResponse(false, 'get BabyName error', {}, 500)
+//     }
+// }
+
+
 exports.update = async (req, res, next) => {
     try {
 
@@ -240,14 +346,12 @@ exports.update = async (req, res, next) => {
 
         const updateFields = {
             name: name,
-
+            nameTa: nameTa,
             type: type,
-
             translations: {
                 en: {
                     name: name
                 },
-
                 ta: {
                     name: nameTa
                 }
