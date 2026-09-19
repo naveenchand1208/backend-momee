@@ -169,38 +169,220 @@ exports.list = async (req, res, next) => {
 }
 exports.view = async (req, res, next) => {
     try {
-        var requests = req.bodyParams;
-        if (!requests.id) {
-            return res.apiResponse(false, 'Id is missing', {}, 400);
+        const requests = req.bodyParams;
+
+        if (!requests?.id) {
+            return res.apiResponse(
+                false,
+                'Id is missing',
+                {},
+                400
+            );
         }
-        const collection = await Exercise.findOne({ id: requests.id })
+
+        const collection = await Exercise.findOne({
+            id: requests.id
+        }).lean();
+
         if (!collection) {
-            return res.apiResponse(false, 'collection not found', {}, 404);
+            return res.apiResponse(
+                false,
+                'Collection not found',
+                {},
+                404
+            );
         }
-        return res.apiResponse(true, 'Success', collection, 200);
+
+        // English collection name
+        const englishName =
+            collection?.translations?.en?.collectionName ||
+            collection?.collectionName ||
+            '';
+
+        // Tamil collection name
+        const tamilName =
+            collection?.translations?.ta?.collectionName ||
+            collection?.collectionNameTa ||
+            '';
+
+        // Keep normal English field
+        collection.collectionName = englishName;
+
+        // IMPORTANT: send Tamil separately for admin input
+        collection.collectionNameTa = tamilName;
+
+        // Keep translations also available
+        collection.translations = {
+            en: {
+                collectionName: englishName
+            },
+            ta: {
+                collectionName: tamilName
+            }
+        };
+
+        // Prevent global localization from replacing/removing admin values
+        collection.__skipLocalization = true;
+
+        console.log('EXERCISE COLLECTION ENGLISH:', englishName);
+        console.log('EXERCISE COLLECTION TAMIL:', tamilName);
+        console.log(
+            'EXERCISE COLLECTION TRANSLATIONS:',
+            JSON.stringify(collection.translations, null, 2)
+        );
+
+        return res.apiResponse(
+            true,
+            'Success',
+            collection,
+            200
+        );
+
     } catch (error) {
-        return res.apiResponse(false, 'get collection error', {}, 500)
+        console.error('Exercise Collection View Error:', error);
+
+        return res.apiResponse(
+            false,
+            error.message || 'Something went wrong',
+            {},
+            500
+        );
     }
-}
+};
+// exports.view = async (req, res, next) => {
+//     try {
+//         var requests = req.bodyParams;
+//         if (!requests.id) {
+//             return res.apiResponse(false, 'Id is missing', {}, 400);
+//         }
+//         const collection = await Exercise.findOne({ id: requests.id })
+//         if (!collection) {
+//             return res.apiResponse(false, 'collection not found', {}, 404);
+//         }
+//         return res.apiResponse(true, 'Success', collection, 200);
+//     } catch (error) {
+//         return res.apiResponse(false, 'get collection error', {}, 500)
+//     }
+// }
+
 exports.viewExercise = async (req, res, next) => {
     try {
-        var { id, exerciseId } = req.bodyParams;
+
+        const { id, exerciseId } = req.bodyParams;
+
         if (!id || !exerciseId) {
-            return res.apiResponse(false, 'Id or exerciseId is missing', {}, 400);
+            return res.apiResponse(
+                false,
+                'Id or exerciseId is missing',
+                {},
+                400
+            );
         }
-        const collection = await Exercise.findOne({ id })
+
+        const collection = await Exercise.findOne({ id }).lean();
+
         if (!collection) {
-            return res.apiResponse(false, 'collection not found', {}, 404);
+            return res.apiResponse(
+                false,
+                'Collection not found',
+                {},
+                404
+            );
         }
-        const exercise = collection.exercises.find(ex => ex.exerciseId === exerciseId)
+
+        const exercise = collection.exercises.find(
+            ex => ex.exerciseId === exerciseId
+        );
+
         if (!exercise) {
-            return res.apiResponse(false, 'exercise not found', {}, 404);
+            return res.apiResponse(
+                false,
+                'Exercise not found',
+                {},
+                404
+            );
         }
-        return res.apiResponse(true, 'Success', exercise, 200);
+
+        // Get English value from database
+        const englishName =
+            exercise?.translations?.en?.exerciseName ||
+            exercise?.exerciseName ||
+            '';
+
+        // Get Tamil value from database
+        const tamilName =
+            exercise?.translations?.ta?.exerciseName ||
+            '';
+
+        // Values specifically for admin input
+        exercise.exerciseName = englishName;
+        exercise.exerciseNameTa = tamilName;
+
+        // Keep both translations in response
+        exercise.translations = {
+            en: {
+                exerciseName: englishName
+            },
+            ta: {
+                exerciseName: tamilName
+            }
+        };
+
+        // Tell global localization middleware:
+        // this is an admin bilingual response
+        exercise.__skipLocalization = true;
+
+        console.log("========== VIEW EXERCISE ==========");
+        console.log("Exercise ID:", exerciseId);
+        console.log("English:", englishName);
+        console.log("Tamil:", tamilName);
+        console.log(
+            "Translations:",
+            JSON.stringify(exercise.translations, null, 2)
+        );
+        console.log("===================================");
+
+        return res.apiResponse(
+            true,
+            'Success',
+            exercise,
+            200
+        );
+
     } catch (error) {
-        return res.apiResponse(false, 'get exercise error', { error }, 500)
+
+        console.error(
+            'Get exercise error:',
+            error
+        );
+
+        return res.apiResponse(
+            false,
+            'Get exercise error',
+            { error },
+            500
+        );
     }
-}
+};
+// exports.viewExercise = async (req, res, next) => {
+//     try {
+//         var { id, exerciseId } = req.bodyParams;
+//         if (!id || !exerciseId) {
+//             return res.apiResponse(false, 'Id or exerciseId is missing', {}, 400);
+//         }
+//         const collection = await Exercise.findOne({ id })
+//         if (!collection) {
+//             return res.apiResponse(false, 'collection not found', {}, 404);
+//         }
+//         const exercise = collection.exercises.find(ex => ex.exerciseId === exerciseId)
+//         if (!exercise) {
+//             return res.apiResponse(false, 'exercise not found', {}, 404);
+//         }
+//         return res.apiResponse(true, 'Success', exercise, 200);
+//     } catch (error) {
+//         return res.apiResponse(false, 'get exercise error', { error }, 500)
+//     }
+// }
 
 exports.updateExercise = async (req, res, next) => {
     try {
