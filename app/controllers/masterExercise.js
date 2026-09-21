@@ -7,16 +7,6 @@ exports.add = async (req, res, next) => {
 
         const name = req.body.name;
         const nameTa = req.body.nameTa;
-
-        console.log('================================');
-        console.log('MASTER EXERCISE ADD');
-        console.log('================================');
-
-        console.log('English Name:', name);
-        console.log('Tamil Name:', nameTa);
-        console.log('BODY:', req.body);
-
-
         // English validation
         if (!name) {
             return res.apiResponse(
@@ -262,10 +252,9 @@ exports.view = async (req, res, next) => {
             );
         }
 
-        const exercise =
-            await MasterExercise.findOne({
-                id: requests.id
-            });
+        const exercise = await MasterExercise
+            .findOne({ id: requests.id })
+            .lean();
 
         if (!exercise) {
             return res.apiResponse(
@@ -276,6 +265,45 @@ exports.view = async (req, res, next) => {
             );
         }
 
+        // English value
+        const englishName =
+            exercise?.translations?.en?.name ||
+            exercise?.name ||
+            '';
+
+        // Tamil value
+        const tamilName =
+            exercise?.translations?.ta?.name ||
+            '';
+
+        // Keep existing English field
+        exercise.name = englishName;
+
+        // Explicit Tamil field for admin input
+        exercise.nameTa = tamilName;
+
+        // Keep both translations available
+        exercise.translations = {
+            en: {
+                name: englishName
+            },
+            ta: {
+                name: tamilName
+            }
+        };
+
+        // Prevent global localization from changing admin response
+        exercise.__skipLocalization = true;
+
+        console.log('========== MASTER EXERCISE VIEW ==========');
+        console.log('ID:', exercise.id);
+        console.log('English Name:', exercise.name);
+        console.log('Tamil Name:', exercise.nameTa);
+        console.log(
+            'Translations:',
+            JSON.stringify(exercise.translations, null, 2)
+        );
+
         return res.apiResponse(
             true,
             'Success',
@@ -285,13 +313,19 @@ exports.view = async (req, res, next) => {
 
     } catch (error) {
 
+        console.error(
+            'Get Master Exercise Error:',
+            error
+        );
+
         return res.apiResponse(
             false,
             'get Exercise error',
-            {},
+            {
+                error: error.message
+            },
             500
         );
-
     }
 };
 

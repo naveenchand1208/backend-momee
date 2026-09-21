@@ -434,19 +434,131 @@ exports.list = async (req, res, next) => {
 
 exports.view = async (req, res, next) => {
     try {
-        var requests = req.bodyParams;
+
+        const requests = req.bodyParams;
+
         if (!requests.id) {
-            return res.apiResponse(false, 'Id is missing', {}, 400);
+            return res.apiResponse(
+                false,
+                'Id is missing',
+                {},
+                400
+            );
         }
-        const product = await Product.findOne({ id: requests.id })
+
+        const product = await Product
+            .findOne({ id: requests.id })
+            .lean();
+
         if (!product) {
-            return res.apiResponse(false, 'Product not found', {}, 404);
+            return res.apiResponse(
+                false,
+                'Product not found',
+                {},
+                404
+            );
         }
-        return res.apiResponse(true, 'Success', product, 200);
+
+        // English values
+        const englishName =
+            product?.translations?.en?.name ||
+            product?.name ||
+            '';
+
+        const englishDescription =
+            product?.translations?.en?.description ||
+            product?.description ||
+            '';
+
+        // Tamil values
+        const tamilName =
+            product?.translations?.ta?.name ||
+            '';
+
+        const tamilDescription =
+            product?.translations?.ta?.description ||
+            '';
+
+        // Existing English fields
+        product.name = englishName;
+        product.description = englishDescription;
+
+        // Direct Tamil fields for admin inputs
+        product.nameTa = tamilName;
+        product.descriptionTa = tamilDescription;
+
+        // Keep complete translations
+        product.translations = {
+            en: {
+                name: englishName,
+                description: englishDescription
+            },
+
+            ta: {
+                name: tamilName,
+                description: tamilDescription
+            }
+        };
+
+        // Prevent global localization from changing admin response
+        product.__skipLocalization = true;
+
+        console.log('========== PRODUCT VIEW ==========');
+        console.log('ID:', product.id);
+        console.log('English Name:', product.name);
+        console.log('Tamil Name:', product.nameTa);
+        console.log('English Description:', product.description);
+        console.log('Tamil Description:', product.descriptionTa);
+
+        console.log(
+            'Translations:',
+            JSON.stringify(
+                product.translations,
+                null,
+                2
+            )
+        );
+
+        return res.apiResponse(
+            true,
+            'Success',
+            product,
+            200
+        );
+
     } catch (error) {
-        return res.apiResponse(false, 'get Product error', {}, 500)
+
+        console.error(
+            'Get Product Error:',
+            error
+        );
+
+        return res.apiResponse(
+            false,
+            'get Product error',
+            {
+                error: error.message
+            },
+            500
+        );
     }
-}
+};
+
+// exports.view = async (req, res, next) => {
+//     try {
+//         var requests = req.bodyParams;
+//         if (!requests.id) {
+//             return res.apiResponse(false, 'Id is missing', {}, 400);
+//         }
+//         const product = await Product.findOne({ id: requests.id })
+//         if (!product) {
+//             return res.apiResponse(false, 'Product not found', {}, 404);
+//         }
+//         return res.apiResponse(true, 'Success', product, 200);
+//     } catch (error) {
+//         return res.apiResponse(false, 'get Product error', {}, 500)
+//     }
+// }
 
 // exports.update = async (req, res, next) => {
 //     try {

@@ -1837,6 +1837,37 @@ cron.schedule('0 * * * *', async () => {
     }
 });
 
+exports.totalUsersCount = async (req, res, next) => {
+    try {
+        const { momType } = req.bodyParams || {};
+
+        const query = {
+            roleName: 'user',
+            momType: momType || 'pregMom'
+        };
+
+        const totalUsers = await Auth.countDocuments(query);
+        return res.apiResponse(
+            true,
+            'Total users count',
+            {
+                count: totalUsers
+            },
+            200
+        );
+
+    } catch (error) {
+        console.error('Total Users Count Error:', error);
+
+        return res.apiResponse(
+            false,
+            'Error getting total users count',
+            {},
+            500
+        );
+    }
+};
+
 exports.getInactiveUserCounts = async (req, res) => {
     try {
         const { momType, fromDate, toDate } = req.bodyParams;

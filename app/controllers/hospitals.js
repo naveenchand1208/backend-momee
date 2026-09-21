@@ -20,44 +20,141 @@ const parseTranslations = (value) => {
 };
 
 const normalizeDoctors = (doctors = []) => {
-    if (!Array.isArray(doctors)) return doctors;
+    if (!Array.isArray(doctors)) return [];
+
     return doctors.map((doctor) => {
+
         const item = { ...doctor };
-        const translations = parseTranslations(item.translations) || {};
-        item.translations = {
-            en: {
-                ...(translations.en || {}),
-                name: translations.en?.name ?? item.name ?? '',
-                bio: translations.en?.bio ?? item.bio ?? ''
-            },
-            ta: {
-                ...(translations.ta || {}),
-                name: translations.ta?.name ?? item.nameTa ?? '',
-                bio: translations.ta?.bio ?? item.bioTa ?? ''
+
+        const translations =
+            parseTranslations(item.translations) || {};
+
+        const englishName =
+            translations?.en?.name ||
+            item.name ||
+            '';
+
+        const tamilName =
+            translations?.ta?.name ||
+            item.nameTa ||
+            '';
+
+        const englishBio =
+            translations?.en?.bio ||
+            item.bio ||
+            '';
+
+        const tamilBio =
+            translations?.ta?.bio ||
+            item.bioTa ||
+            '';
+
+        return {
+            ...item,
+
+            // English input values
+            name: englishName,
+            bio: englishBio,
+
+            // Tamil input values
+            nameTa: tamilName,
+            bioTa: tamilBio,
+
+            translations: {
+                en: {
+                    name: englishName,
+                    bio: englishBio
+                },
+
+                ta: {
+                    name: tamilName,
+                    bio: tamilBio
+                }
             }
         };
-        return item;
+    });
+};
+const normalizeFacilities = (facilities = []) => {
+    if (!Array.isArray(facilities)) return [];
+
+    return facilities.map((facility) => {
+
+        const item = { ...facility };
+
+        const translations =
+            parseTranslations(item.translations) || {};
+
+        const englishDescription =
+            translations?.en?.decription ||
+            item.decription ||
+            '';
+
+        const tamilDescription =
+            translations?.ta?.decription ||
+            item.decriptionTa ||
+            '';
+
+        return {
+            ...item,
+
+            // English
+            decription: englishDescription,
+
+            // Tamil
+            decriptionTa: tamilDescription,
+
+            translations: {
+                en: {
+                    decription: englishDescription
+                },
+
+                ta: {
+                    decription: tamilDescription
+                }
+            }
+        };
     });
 };
 
-const normalizeFacilities = (facilities = []) => {
-    if (!Array.isArray(facilities)) return facilities;
-    return facilities.map((facility) => {
-        const item = { ...facility };
-        const translations = parseTranslations(item.translations) || {};
-        item.translations = {
-            en: {
-                ...(translations.en || {}),
-                decription: translations.en?.decription ?? item.decription ?? ''
-            },
-            ta: {
-                ...(translations.ta || {}),
-                decription: translations.ta?.decription ?? item.decriptionTa ?? ''
-            }
-        };
-        return item;
-    });
-};
+// const normalizeDoctors = (doctors = []) => {
+//     if (!Array.isArray(doctors)) return doctors;
+//     return doctors.map((doctor) => {
+//         const item = { ...doctor };
+//         const translations = parseTranslations(item.translations) || {};
+//         item.translations = {
+//             en: {
+//                 ...(translations.en || {}),
+//                 name: translations.en?.name ?? item.name ?? '',
+//                 bio: translations.en?.bio ?? item.bio ?? ''
+//             },
+//             ta: {
+//                 ...(translations.ta || {}),
+//                 name: translations.ta?.name ?? item.nameTa ?? '',
+//                 bio: translations.ta?.bio ?? item.bioTa ?? ''
+//             }
+//         };
+//         return item;
+//     });
+// };
+
+// const normalizeFacilities = (facilities = []) => {
+//     if (!Array.isArray(facilities)) return facilities;
+//     return facilities.map((facility) => {
+//         const item = { ...facility };
+//         const translations = parseTranslations(item.translations) || {};
+//         item.translations = {
+//             en: {
+//                 ...(translations.en || {}),
+//                 decription: translations.en?.decription ?? item.decription ?? ''
+//             },
+//             ta: {
+//                 ...(translations.ta || {}),
+//                 decription: translations.ta?.decription ?? item.decriptionTa ?? ''
+//             }
+//         };
+//         return item;
+//     });
+// };
 
 exports.add = async (req, res, next) => {
     try {
@@ -542,17 +639,89 @@ const getDepartmentWithHospital = async (item) => {
 };
 
 const enrichHospital = async (item) => {
+
     const hospital = item.toObject();
-    // const parsed = bulkSafeParse(raw, ['departmentIds', 'facilities', 'typeIds', 'Doctors']);
-    const departments = await getDepartments(hospital.departmentIds);
-    const Doctors = await Promise.all(
-        hospital.Doctors.map(async (doc) => ({
-            ...doc,
-            department: await getDepartments(doc.departmentIds)
-        }))
+
+    const hospitalTranslations =
+        parseTranslations(hospital.translations) || {};
+
+    const englishName =
+        hospitalTranslations?.en?.name ||
+        hospital.name ||
+        '';
+
+    const tamilName =
+        hospitalTranslations?.ta?.name ||
+        hospital.nameTa ||
+        '';
+
+    const englishAddress =
+        hospitalTranslations?.en?.address ||
+        hospital.address ||
+        '';
+
+    const tamilAddress =
+        hospitalTranslations?.ta?.address ||
+        hospital.addressTa ||
+        '';
+
+    const departments =
+        await getDepartments(hospital.departmentIds);
+
+    const Doctors = normalizeDoctors(
+        hospital.Doctors || []
     );
-    return { ...hospital, Doctors, departments };
+
+    const facilities = normalizeFacilities(
+        hospital.facilities || []
+    );
+
+    return {
+
+        ...hospital,
+
+        // Hospital English
+        name: englishName,
+        address: englishAddress,
+
+        // Hospital Tamil
+        nameTa: tamilName,
+        addressTa: tamilAddress,
+
+        // Keep translations
+        translations: {
+            en: {
+                name: englishName,
+                address: englishAddress
+            },
+
+            ta: {
+                name: tamilName,
+                address: tamilAddress
+            }
+        },
+
+        // Nested Tamil values
+        Doctors,
+
+        facilities,
+
+        departments
+    };
 };
+
+// const enrichHospital = async (item) => {
+//     const hospital = item.toObject();
+//     // const parsed = bulkSafeParse(raw, ['departmentIds', 'facilities', 'typeIds', 'Doctors']);
+//     const departments = await getDepartments(hospital.departmentIds);
+//     const Doctors = await Promise.all(
+//         hospital.Doctors.map(async (doc) => ({
+//             ...doc,
+//             department: await getDepartments(doc.departmentIds)
+//         }))
+//     );
+//     return { ...hospital, Doctors, departments };
+// };
 
 // const enrichHospital = async (item) => {
 //     // console.log('item', item, typeof item)
