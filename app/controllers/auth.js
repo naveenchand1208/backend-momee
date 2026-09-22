@@ -1840,12 +1840,10 @@ cron.schedule('0 * * * *', async () => {
 exports.totalUsersCount = async (req, res, next) => {
     try {
         const { momType } = req.bodyParams || {};
-
         const query = {
             roleName: 'user',
             momType: momType || 'pregMom'
         };
-
         const totalUsers = await Auth.countDocuments(query);
         return res.apiResponse(
             true,
@@ -1855,10 +1853,8 @@ exports.totalUsersCount = async (req, res, next) => {
             },
             200
         );
-
     } catch (error) {
         console.error('Total Users Count Error:', error);
-
         return res.apiResponse(
             false,
             'Error getting total users count',
@@ -1899,9 +1895,7 @@ exports.getInactiveUserCounts = async (req, res) => {
         if (fromDate && toDate) {
             const from = moment(fromDate, 'DD-MM-YYYY');
             const to = moment(toDate, 'DD-MM-YYYY').endOf('day');
-
             const filtered = parsedUsers.filter(u => u.loginAt.isBetween(from, to, undefined, '[]'));
-
             return res.apiResponse(true, 'Success', {
                 customRange: {
                     fromDate,
@@ -1925,7 +1919,6 @@ exports.getInactiveUserCounts = async (req, res) => {
 
         for (const user of parsedUsers) {
             const { id, loginAt } = user;
-
             if (loginAt.isBetween(now.clone().subtract(7, 'days'), todayStart, undefined, '[]')) {
                 result.last7Days.push(id);
             }

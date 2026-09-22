@@ -4,28 +4,37 @@ const { uploadToCloudinary, deleteFromCloudinary } = require('../helpers/cloudin
 
 exports.add = async (req, res, next) => {
     try {
+
+        console.log('========== BABY ANIMATION ADD ==========');
+        console.log('BODY:', req.body);
+        console.log('FILE:', req.file);
+        console.log('NAME:', req.body?.name);
+        console.log('BABY SIZE:', req.body?.babySize);
+        console.log('BABY WEIGHT:', req.body?.babyWeight);
+        console.log('========================================');
+
         const {
             name,
-            nameTa,
             babySize,
             babyWeight
         } = req.body;
 
-        console.log('BABY NAME:', name);
-        console.log('BABY TAMIL NAME:', nameTa);
+        if (!name || !babySize || !babyWeight || !req.file) {
 
-        if (!name || !nameTa || !babySize || !babyWeight || !req.file) {
             return res.apiResponse(
                 false,
                 'Params is missing',
-                {},
+                {
+                    name: !!name,
+                    babySize: !!babySize,
+                    babyWeight: !!babyWeight,
+                    file: !!req.file
+                },
                 400
             );
         }
 
-        const allowedType = 'image/gif';
-
-        if (req.file.mimetype !== allowedType) {
+        if (req.file.mimetype !== 'image/gif') {
             return res.apiResponse(
                 false,
                 'Only GIF files are allowed',
@@ -55,7 +64,8 @@ exports.add = async (req, res, next) => {
             'babyAnimation'
         );
 
-        const uniqueId = `BabyAnimation-${moment().format('DDMMYYYYHHmmss')}`;
+        const uniqueId =
+            `BabyAnimation-${moment().format('DDMMYYYYHHmmss')}`;
 
         const newAnimation = new BabyAnimation({
             name,
@@ -65,45 +75,146 @@ exports.add = async (req, res, next) => {
             translations: {
                 en: {
                     name: name
-                },
-                ta: {
-                    name: nameTa
                 }
             },
 
             file: secure_url,
             public_id: public_id,
-            id: uniqueId,
+            id: uniqueId
         });
-
-        console.log(
-            'FINAL TRANSLATIONS:',
-            newAnimation.translations
-        );
 
         await newAnimation.save();
 
+        console.log(
+            'Baby Animation Added:',
+            newAnimation.id
+        );
+
         return res.apiResponse(
             true,
-            "BabyAnimation added Success",
+            'BabyAnimation added Success',
             newAnimation,
             200
         );
 
     } catch (error) {
+
         console.error(
-            "Add BabyAnimation Error:",
+            'Add BabyAnimation Error:',
             error
         );
 
         return res.apiResponse(
             false,
             'BabyAnimation Add error',
-            { error },
+            {
+                error: error.message
+            },
             500
         );
     }
 };
+
+// exports.add = async (req, res, next) => {
+//     try {
+//         const {
+//             name,
+//             //nameTa,
+//             babySize,
+//             babyWeight
+//         } = req.body;
+
+//         //if (!name || !nameTa || !babySize || !babyWeight || !req.file) {
+//         if (!name || !babySize || !babyWeight || !req.file) {
+//             return res.apiResponse(
+//                 false,
+//                 'Params is missing',
+//                 {},
+//                 400
+//             );
+//         }
+
+//         const allowedType = 'image/gif';
+
+//         if (req.file.mimetype !== allowedType) {
+//             return res.apiResponse(
+//                 false,
+//                 'Only GIF files are allowed',
+//                 {},
+//                 400
+//             );
+//         }
+
+//         const checkTitle = await BabyAnimation.findOne({
+//             name
+//         });
+
+//         if (checkTitle) {
+//             return res.apiResponse(
+//                 false,
+//                 'Name already exists',
+//                 {},
+//                 400
+//             );
+//         }
+
+//         const {
+//             secure_url,
+//             public_id
+//         } = await uploadToCloudinary(
+//             req.file,
+//             'babyAnimation'
+//         );
+
+//         const uniqueId = `BabyAnimation-${moment().format('DDMMYYYYHHmmss')}`;
+
+//         const newAnimation = new BabyAnimation({
+//             name,
+//             babySize,
+//             babyWeight,
+
+//             translations: {
+//                 en: {
+//                     name: name
+//                 },
+//                 // ta: {
+//                 //     name: nameTa
+//                 // }
+//             },
+
+//             file: secure_url,
+//             public_id: public_id,
+//             id: uniqueId,
+//         });
+
+//         console.log(
+//             'FINAL TRANSLATIONS:',
+//             newAnimation.translations
+//         );
+
+//         await newAnimation.save();
+
+//         return res.apiResponse(
+//             true,
+//             "BabyAnimation added Success",
+//             newAnimation,
+//             200
+//         );
+
+//     } catch (error) {
+//         console.error(
+//             "Add BabyAnimation Error:",
+//             error
+//         );
+
+//         return res.apiResponse(
+//             false,
+//             'BabyAnimation Add error',
+//             { error },
+//             500
+//         );
+//     }
+// };
 
 // exports.add = async (req, res, next) => {
 //     try {
@@ -225,7 +336,11 @@ exports.view = async (req, res, next) => {
     try {
         const requests = req.bodyParams;
 
-        if (!requests.id) {
+        console.log('========== BABY ANIMATION VIEW ==========');
+        console.log('BODY PARAMS:', requests);
+        console.log('=========================================');
+
+        if (!requests || !requests.id) {
             return res.apiResponse(
                 false,
                 'Id is missing',
@@ -247,64 +362,17 @@ exports.view = async (req, res, next) => {
             );
         }
 
-        // ==========================================
-        // GET EXISTING TAMIL
-        // ==========================================
-
-        let tamilName =
-            animation?.translations?.ta?.name ||
-            animation?.nameTa ||
+        // English name only
+        animation.name =
+            animation?.translations?.en?.name ||
+            animation?.name ||
             '';
 
-        // ==========================================
-        // AUTO CREATE TAMIL FOR WEEK TITLES
-        // ==========================================
-
-        if (!tamilName && animation?.name) {
-
-            const weekMatch = animation.name.match(
-                /^Week\s+(\d+)$/i
-            );
-
-            if (weekMatch) {
-                const weekNumber = weekMatch[1];
-
-                tamilName = `வாரம் ${weekNumber}`;
-            }
-        }
-
-        // ==========================================
-        // SEND TAMIL TO ADMIN FORM
-        // ==========================================
-
-        animation.nameTa = tamilName;
-
-        animation.translations = {
-            en: {
-                name:
-                    animation?.translations?.en?.name ||
-                    animation?.name ||
-                    ''
-            },
-
-            ta: {
-                name: tamilName
-            }
-        };
-
-        // Prevent global localization
+        // No Tamil required
         animation.__skipLocalization = true;
 
-        // DEBUG
-        console.log('=================================');
-        console.log('BABY ANIMATION ID:', animation.id);
-        console.log('ENGLISH NAME:', animation.name);
-        console.log('TAMIL NAME:', tamilName);
-        console.log(
-            'TRANSLATIONS:',
-            JSON.stringify(animation.translations, null, 2)
-        );
-        console.log('=================================');
+        console.log('BABY ANIMATION FOUND:', animation.id);
+        console.log('NAME:', animation.name);
 
         return res.apiResponse(
             true,
@@ -323,11 +391,110 @@ exports.view = async (req, res, next) => {
         return res.apiResponse(
             false,
             'get BabyAnimation error',
-            {},
+            {
+                error: error.message
+            },
             500
         );
     }
 };
+
+// exports.view = async (req, res, next) => {
+//     try {
+//         const requests = req.bodyParams;
+
+//         if (!requests.id) {
+//             return res.apiResponse(
+//                 false,
+//                 'Id is missing',
+//                 {},
+//                 400
+//             );
+//         }
+
+//         const animation = await BabyAnimation
+//             .findOne({ id: requests.id })
+//             .lean();
+
+//         if (!animation) {
+//             return res.apiResponse(
+//                 false,
+//                 'BabyAnimation not found',
+//                 {},
+//                 404
+//             );
+//         }
+
+//         // ==========================================
+//         // GET EXISTING TAMIL
+//         // ==========================================
+
+//         // let tamilName =
+//         //     animation?.translations?.ta?.name ||
+//         //     animation?.nameTa ||
+//         //     '';
+
+//         // ==========================================
+//         // AUTO CREATE TAMIL FOR WEEK TITLES
+//         // ==========================================
+
+//         if (!tamilName && animation?.name) {
+
+//             const weekMatch = animation.name.match(
+//                 /^Week\s+(\d+)$/i
+//             );
+
+//             if (weekMatch) {
+//                 const weekNumber = weekMatch[1];
+
+//                 tamilName = `வாரம் ${weekNumber}`;
+//             }
+//         }
+
+//         // ==========================================
+//         // SEND TAMIL TO ADMIN FORM
+//         // ==========================================
+
+//         //animation.nameTa = tamilName;
+
+//         animation.translations = {
+//             en: {
+//                 name:
+//                     animation?.translations?.en?.name ||
+//                     animation?.name ||
+//                     ''
+//             },
+
+//             ta: {
+//                 name: tamilName
+//             }
+//         };
+
+//         // Prevent global localization
+//         animation.__skipLocalization = true;
+
+//         return res.apiResponse(
+//             true,
+//             'Success',
+//             animation,
+//             200
+//         );
+
+//     } catch (error) {
+
+//         console.error(
+//             'BabyAnimation View Error:',
+//             error
+//         );
+
+//         return res.apiResponse(
+//             false,
+//             'get BabyAnimation error',
+//             {},
+//             500
+//         );
+//     }
+// };
 
 // exports.view = async (req, res, next) => {
 //     try {
@@ -411,8 +578,215 @@ exports.view = async (req, res, next) => {
 
 // };
 
+
+// exports.update = async (req, res, next) => {
+//     try {
+//         if (!req.body) {
+//             return res.apiResponse(
+//                 false,
+//                 'Payload is missing',
+//                 {},
+//                 400
+//             );
+//         }
+
+//         const body = Object(req.body);
+
+//         const {
+//             id,
+//             public_id,
+//             fileChanged
+//         } = body;
+
+//         if (!id) {
+//             return res.apiResponse(
+//                 false,
+//                 'Id is missing',
+//                 {},
+//                 400
+//             );
+//         }
+
+//         // ==========================================
+//         // GET TRANSLATIONS
+//         // ==========================================
+
+//         let translations = {};
+
+//         if (req.body.translations) {
+//             try {
+//                 translations =
+//                     typeof req.body.translations === 'string'
+//                         ? JSON.parse(req.body.translations)
+//                         : req.body.translations;
+//             } catch (error) {
+//                 console.error(
+//                     'Invalid translations JSON:',
+//                     error
+//                 );
+
+//                 return res.apiResponse(
+//                     false,
+//                     'Invalid translations data',
+//                     {},
+//                     400
+//                 );
+//             }
+//         }
+
+//         // ==========================================
+//         // GET EXISTING RECORD
+//         // ==========================================
+
+//         const existingAnimation =
+//             await BabyAnimation.findOne({ id });
+
+//         if (!existingAnimation) {
+//             return res.apiResponse(
+//                 false,
+//                 'Animation not found',
+//                 {},
+//                 404
+//             );
+//         }
+
+//         // ==========================================
+//         // UPDATE FIELDS
+//         // ==========================================
+
+//         const updateFields = {};
+
+//         if (
+//             req.body.name !== undefined &&
+//             req.body.name !== ''
+//         ) {
+//             updateFields.name = req.body.name;
+//         }
+
+//         if (
+//             req.body.babySize !== undefined &&
+//             req.body.babySize !== ''
+//         ) {
+//             updateFields.babySize = req.body.babySize;
+//         }
+
+//         if (
+//             req.body.babyWeight !== undefined &&
+//             req.body.babyWeight !== ''
+//         ) {
+//             updateFields.babyWeight = req.body.babyWeight;
+//         }
+
+//         if (req.body.status) {
+//             updateFields.status = req.body.status;
+//         }
+
+//         // ==========================================
+//         // TRANSLATIONS
+//         // ==========================================
+
+//         updateFields.translations = {
+//             en: {
+//                 name:
+//                     req.body.name ||
+//                     existingAnimation?.translations?.en?.name ||
+//                     existingAnimation?.name ||
+//                     ''
+//             },
+
+//             // ta: {
+//             //     name:
+//             //         translations?.ta?.name ||
+//             //         req.body.nameTa ||
+//             //         existingAnimation?.translations?.ta?.name ||
+//             //         ''
+//             // }
+//         };
+
+//         // ==========================================
+//         // FILE
+//         // ==========================================
+
+//         if (fileChanged && public_id) {
+
+//             await deleteFromCloudinary(public_id);
+
+//             if (req.file) {
+
+//                 const {
+//                     secure_url,
+//                     public_id: newPublicId
+//                 } = await uploadToCloudinary(
+//                     req.file,
+//                     'babyAnimation'
+//                 );
+
+//                 updateFields.file = secure_url;
+//                 updateFields.public_id = newPublicId;
+//             }
+//         }
+
+//         // ==========================================
+//         // DEBUG
+//         // ==========================================
+
+//         console.log(
+//             'UPDATE BABY ANIMATION'
+//         );
+
+//         console.log(
+//             'English:',
+//             updateFields.translations.en.name
+//         );
+
+//         // ==========================================
+//         // UPDATE DATABASE
+//         // ==========================================
+
+//         const updatedAnimation =
+//             await BabyAnimation.findOneAndUpdate(
+//                 { id },
+//                 { $set: updateFields },
+//                 {
+//                     new: true
+//                 }
+//             );
+
+//         if (!updatedAnimation) {
+//             return res.apiResponse(
+//                 false,
+//                 'Animation not found',
+//                 {},
+//                 404
+//             );
+//         }
+
+//         return res.apiResponse(
+//             true,
+//             'Animation updated successfully',
+//             updatedAnimation,
+//             200
+//         );
+
+//     } catch (error) {
+
+//         console.error(
+//             'Update Error:',
+//             error
+//         );
+
+//         return res.apiResponse(
+//             false,
+//             'Error updating Animation',
+//             {},
+//             500
+//         );
+//     }
+// };
+
 exports.update = async (req, res, next) => {
     try {
+
         if (!req.body) {
             return res.apiResponse(
                 false,
@@ -430,6 +804,12 @@ exports.update = async (req, res, next) => {
             fileChanged
         } = body;
 
+        console.log('========== BABY ANIMATION UPDATE ==========');
+        console.log('BODY:', req.body);
+        console.log('ID:', id);
+        console.log('STATUS:', req.body.status);
+        console.log('============================================');
+
         if (!id) {
             return res.apiResponse(
                 false,
@@ -437,33 +817,6 @@ exports.update = async (req, res, next) => {
                 {},
                 400
             );
-        }
-
-        // ==========================================
-        // GET TRANSLATIONS
-        // ==========================================
-
-        let translations = {};
-
-        if (req.body.translations) {
-            try {
-                translations =
-                    typeof req.body.translations === 'string'
-                        ? JSON.parse(req.body.translations)
-                        : req.body.translations;
-            } catch (error) {
-                console.error(
-                    'Invalid translations JSON:',
-                    error
-                );
-
-                return res.apiResponse(
-                    false,
-                    'Invalid translations data',
-                    {},
-                    400
-                );
-            }
         }
 
         // ==========================================
@@ -509,12 +862,19 @@ exports.update = async (req, res, next) => {
             updateFields.babyWeight = req.body.babyWeight;
         }
 
-        if (req.body.status) {
+        // ==========================================
+        // STATUS
+        // ==========================================
+
+        if (
+            req.body.status !== undefined &&
+            req.body.status !== ''
+        ) {
             updateFields.status = req.body.status;
         }
 
         // ==========================================
-        // TRANSLATIONS
+        // ENGLISH TRANSLATION
         // ==========================================
 
         updateFields.translations = {
@@ -523,14 +883,6 @@ exports.update = async (req, res, next) => {
                     req.body.name ||
                     existingAnimation?.translations?.en?.name ||
                     existingAnimation?.name ||
-                    ''
-            },
-
-            ta: {
-                name:
-                    translations?.ta?.name ||
-                    req.body.nameTa ||
-                    existingAnimation?.translations?.ta?.name ||
                     ''
             }
         };
@@ -562,19 +914,12 @@ exports.update = async (req, res, next) => {
         // DEBUG
         // ==========================================
 
-        console.log(
-            'UPDATE BABY ANIMATION'
-        );
-
-        console.log(
-            'English:',
-            updateFields.translations.en.name
-        );
-
-        console.log(
-            'Tamil:',
-            updateFields.translations.ta.name
-        );
+        console.log('UPDATE BABY ANIMATION');
+        console.log('ID:', id);
+        console.log('Name:', updateFields.name);
+        console.log('Baby Size:', updateFields.babySize);
+        console.log('Baby Weight:', updateFields.babyWeight);
+        console.log('Status:', updateFields.status);
 
         // ==========================================
         // UPDATE DATABASE
@@ -583,7 +928,9 @@ exports.update = async (req, res, next) => {
         const updatedAnimation =
             await BabyAnimation.findOneAndUpdate(
                 { id },
-                { $set: updateFields },
+                {
+                    $set: updateFields
+                },
                 {
                     new: true
                 }
@@ -597,6 +944,11 @@ exports.update = async (req, res, next) => {
                 404
             );
         }
+
+        console.log(
+            'UPDATED STATUS:',
+            updatedAnimation.status
+        );
 
         return res.apiResponse(
             true,
@@ -615,7 +967,9 @@ exports.update = async (req, res, next) => {
         return res.apiResponse(
             false,
             'Error updating Animation',
-            {},
+            {
+                error: error.message
+            },
             500
         );
     }
