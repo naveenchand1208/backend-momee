@@ -291,6 +291,145 @@ exports.view = async (req, res, next) => {
 // }
 
 
+// exports.update = async (req, res, next) => {
+//     try {
+
+//         console.log("========== BABY NAME UPDATE ==========");
+//         console.log("BODY PARAMS:", req.bodyParams);
+
+//         const {
+//             id,
+//             name,
+//             nameTa,
+//             type
+//         } = req.bodyParams;
+
+//         console.log("ID:", id);
+//         console.log("English Name:", name);
+//         console.log("Tamil Name:", nameTa);
+//         console.log("Type:", type);
+
+//         if (!id) {
+//             return res.apiResponse(
+//                 false,
+//                 'Id is missing',
+//                 {},
+//                 400
+//             );
+//         }
+
+//         if (!name || !nameTa || !type) {
+//             return res.apiResponse(
+//                 false,
+//                 'Params is missing',
+//                 {},
+//                 400
+//             );
+//         }
+
+//         const checkTitle = await BabyName.findOne({
+//             name,
+//             type
+//         });
+
+//         if (
+//             checkTitle &&
+//             checkTitle.id !== id
+//         ) {
+//             return res.apiResponse(
+//                 false,
+//                 'Name already exists',
+//                 {},
+//                 400
+//             );
+//         }
+
+//         const updateFields = {
+//             name: name,
+//             nameTa: nameTa,
+//             type: type,
+//             translations: {
+//                 en: {
+//                     name: name
+//                 },
+//                 ta: {
+//                     name: nameTa
+//                 }
+//             }
+//         };
+
+//         console.log(
+//             "UPDATE FIELDS:",
+//             updateFields
+//         );
+
+//         const updatedBabyName =
+//             await BabyName.findOneAndUpdate(
+//                 { id: id },
+//                 { $set: updateFields },
+//                 { new: true }
+//             );
+
+//         if (!updatedBabyName) {
+//             return res.apiResponse(
+//                 false,
+//                 'Baby Name not found',
+//                 {},
+//                 404
+//             );
+//         }
+
+//         console.log(
+//             "UPDATED BABY NAME:",
+//             updatedBabyName
+//         );
+
+//         return res.apiResponse(
+//             true,
+//             'Baby Name updated successfully',
+//             updatedBabyName,
+//             200
+//         );
+
+//     } catch (error) {
+
+//         console.error(
+//             'Baby Name Update Error:',
+//             error
+//         );
+
+//         return res.apiResponse(
+//             false,
+//             'Error updating Baby Name',
+//             {},
+//             500
+//         );
+//     }
+// };
+// exports.update = async (req, res, next) => {
+//     try {
+//         const { id } = req.bodyParams;
+//         if (id === undefined || id === null) {
+//             return res.apiResponse(false, 'Id is missing', {}, 400);
+//         }
+//         const updateFields = {};
+//         if (req.bodyParams.name) updateFields.name = req.bodyParams.name;
+//         if (req.bodyParams.status) updateFields.status = req.bodyParams.status;
+//         const updatedBabyName = await BabyName.findOneAndUpdate(
+//             { id },
+//             { $set: updateFields },
+//             { new: true }
+//         );
+//         if (!updatedBabyName) {
+//             return res.apiResponse(false, 'BabyName not found', {}, 404);
+//         }
+//         return res.apiResponse(true, 'BabyName updated successfully', updatedBabyName, 200);
+//     } catch (error) {
+//         console.error('Update Error:', error);
+//         return res.apiResponse(false, 'Error updating BabyName', {}, 500);
+//     }
+
+// };
 exports.update = async (req, res, next) => {
     try {
 
@@ -301,14 +440,17 @@ exports.update = async (req, res, next) => {
             id,
             name,
             nameTa,
-            type
-        } = req.bodyParams;
+            type,
+            status
+        } = req.bodyParams || {};
 
         console.log("ID:", id);
         console.log("English Name:", name);
         console.log("Tamil Name:", nameTa);
         console.log("Type:", type);
+        console.log("Status:", status);
 
+        // ID is always required
         if (!id) {
             return res.apiResponse(
                 false,
@@ -317,6 +459,59 @@ exports.update = async (req, res, next) => {
                 400
             );
         }
+
+        // Find existing baby name
+        const existingBabyName =
+            await BabyName.findOne({ id });
+
+        if (!existingBabyName) {
+            return res.apiResponse(
+                false,
+                'Baby Name not found',
+                {},
+                404
+            );
+        }
+
+        // ==========================================
+        // STATUS ONLY UPDATE
+        // ==========================================
+
+        if (
+            status !== undefined &&
+            status !== null &&
+            status !== ''
+        ) {
+
+            const updatedBabyName =
+                await BabyName.findOneAndUpdate(
+                    { id },
+                    {
+                        $set: {
+                            status: status
+                        }
+                    },
+                    {
+                        new: true
+                    }
+                );
+
+            console.log(
+                "STATUS UPDATED:",
+                updatedBabyName.status
+            );
+
+            return res.apiResponse(
+                true,
+                'Baby Name status updated successfully',
+                updatedBabyName,
+                200
+            );
+        }
+
+        // ==========================================
+        // NORMAL EDIT UPDATE
+        // ==========================================
 
         if (!name || !nameTa || !type) {
             return res.apiResponse(
@@ -327,6 +522,7 @@ exports.update = async (req, res, next) => {
             );
         }
 
+        // Check duplicate name
         const checkTitle = await BabyName.findOne({
             name,
             type
@@ -344,10 +540,15 @@ exports.update = async (req, res, next) => {
             );
         }
 
+        // ==========================================
+        // UPDATE ALL BABY NAME DATA
+        // ==========================================
+
         const updateFields = {
             name: name,
             nameTa: nameTa,
             type: type,
+
             translations: {
                 en: {
                     name: name
@@ -358,16 +559,15 @@ exports.update = async (req, res, next) => {
             }
         };
 
-        console.log(
-            "UPDATE FIELDS:",
-            updateFields
-        );
-
         const updatedBabyName =
             await BabyName.findOneAndUpdate(
                 { id: id },
-                { $set: updateFields },
-                { new: true }
+                {
+                    $set: updateFields
+                },
+                {
+                    new: true
+                }
             );
 
         if (!updatedBabyName) {
@@ -401,35 +601,14 @@ exports.update = async (req, res, next) => {
         return res.apiResponse(
             false,
             'Error updating Baby Name',
-            {},
+            {
+                error: error.message
+            },
             500
         );
     }
 };
-// exports.update = async (req, res, next) => {
-//     try {
-//         const { id } = req.bodyParams;
-//         if (id === undefined || id === null) {
-//             return res.apiResponse(false, 'Id is missing', {}, 400);
-//         }
-//         const updateFields = {};
-//         if (req.bodyParams.name) updateFields.name = req.bodyParams.name;
-//         if (req.bodyParams.status) updateFields.status = req.bodyParams.status;
-//         const updatedBabyName = await BabyName.findOneAndUpdate(
-//             { id },
-//             { $set: updateFields },
-//             { new: true }
-//         );
-//         if (!updatedBabyName) {
-//             return res.apiResponse(false, 'BabyName not found', {}, 404);
-//         }
-//         return res.apiResponse(true, 'BabyName updated successfully', updatedBabyName, 200);
-//     } catch (error) {
-//         console.error('Update Error:', error);
-//         return res.apiResponse(false, 'Error updating BabyName', {}, 500);
-//     }
 
-// };
 exports.delete = async (req, res, next) => {
     try {
         var requests = req.bodyParams;
