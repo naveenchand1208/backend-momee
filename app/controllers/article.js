@@ -580,8 +580,20 @@ exports.view = async (req, res, next) => {
 
 exports.update = async (req, res, next) => {
     try {
+
+        console.log('========================================');
+        console.log('ARTICLE UPDATE START');
+        console.log('REQ BODY:', req.body);
+        console.log('REQ FILES:', req.files);
+        console.log('========================================');
+
         if (!req.body) {
-            return res.apiResponse(false, 'Payload is missing', {}, 400);
+            return res.apiResponse(
+                false,
+                'Payload is missing',
+                {},
+                400
+            );
         }
 
         const {
@@ -593,10 +605,18 @@ exports.update = async (req, res, next) => {
         } = req.body;
 
         if (!id) {
-            return res.apiResponse(false, 'Id is missing', {}, 400);
+            return res.apiResponse(
+                false,
+                'Id is missing',
+                {},
+                400
+            );
         }
 
-        // Get existing article first
+        // ==========================================
+        // GET EXISTING ARTICLE
+        // ==========================================
+
         const existingArticle = await Article.findOne({ id });
 
         if (!existingArticle) {
@@ -608,172 +628,262 @@ exports.update = async (req, res, next) => {
             );
         }
 
-        // Duplicate title check
-        const checkTitle = await Article.findOne({
-            title: req.body.title,
-            momType: req.body.momType
-        });
-
-        if (checkTitle && checkTitle.id !== id) {
-            return res.apiResponse(
-                false,
-                'Title already exists',
-                {},
-                400
-            );
-        }
-
-        const updateFields = {};
-
-        // English values
-        if (req.body.title !== undefined && req.body.title !== '') {
-            updateFields.title = req.body.title;
-        }
-
-        if (
-            req.body.description !== undefined &&
-            req.body.description !== ''
-        ) {
-            updateFields.description = req.body.description;
-        }
-
         // ==========================================
-        // TAMIL VALUES
+        // PARSE TRANSLATIONS
         // ==========================================
 
-        const existingTamilTitle =
-            existingArticle?.translations?.ta?.title || '';
+        let translations = {};
 
-        const existingTamilDescription =
-            existingArticle?.translations?.ta?.description || '';
+        console.log(
+            'RAW TRANSLATIONS:',
+            req.body.translations
+        );
+
+        if (req.body.translations) {
+
+            try {
+
+                translations =
+                    typeof req.body.translations === 'string'
+                        ? JSON.parse(req.body.translations)
+                        : req.body.translations;
+
+            } catch (error) {
+
+                console.error(
+                    'TRANSLATIONS JSON ERROR:',
+                    error
+                );
+
+                return res.apiResponse(
+                    false,
+                    'Invalid translations data',
+                    {},
+                    400
+                );
+            }
+        }
+
+        console.log(
+            'PARSED TRANSLATIONS:',
+            JSON.stringify(
+                translations,
+                null,
+                2
+            )
+        );
+
+        console.log(
+            'TAMIL TITLE RECEIVED:',
+            translations?.ta?.title
+        );
+
+        console.log(
+            'TAMIL DESCRIPTION RECEIVED:',
+            translations?.ta?.description
+        );
+
+        // ==========================================
+        // ENGLISH
+        // ==========================================
+
+        const englishTitle =
+            req.body.title ||
+            existingArticle?.translations?.en?.title ||
+            existingArticle?.title ||
+            '';
+
+        const englishDescription =
+            req.body.description ||
+            existingArticle?.translations?.en?.description ||
+            existingArticle?.description ||
+            '';
+
+        // ==========================================
+        // TAMIL
+        // ==========================================
 
         const tamilTitle =
-            req.body.translations?.ta?.title !== undefined &&
-            req.body.translations?.ta?.title !== ''
-                ? req.body.translations.ta.title
-                : existingTamilTitle;
+            translations?.ta?.title !== undefined
+                ? translations.ta.title
+                : existingArticle?.translations?.ta?.title || '';
 
         const tamilDescription =
-            req.body.translations?.ta?.description !== undefined &&
-            req.body.translations?.ta?.description !== ''
-                ? req.body.translations.ta.description
-                : existingTamilDescription;
+            translations?.ta?.description !== undefined
+                ? translations.ta.description
+                : existingArticle?.translations?.ta?.description || '';
 
-        updateFields.translations = {
-            en: {
-                title:
-                    req.body.title ||
-                    existingArticle?.translations?.en?.title ||
-                    existingArticle?.title ||
-                    '',
+        console.log('========================================');
+        console.log('FINAL ENGLISH TITLE:', englishTitle);
+        console.log('FINAL TAMIL TITLE:', tamilTitle);
+        console.log('FINAL TAMIL DESCRIPTION:', tamilDescription);
+        console.log('========================================');
 
-                description:
-                    req.body.description ||
-                    existingArticle?.translations?.en?.description ||
-                    existingArticle?.description ||
-                    ''
-            },
+        // ==========================================
+        // UPDATE FIELDS
+        // ==========================================
 
-            ta: {
-                title: tamilTitle,
-                description: tamilDescription
+        const updateFields = {
+
+            title: englishTitle,
+
+            description: englishDescription,
+
+            translations: {
+                en: {
+                    title: englishTitle,
+                    description: englishDescription
+                },
+
+                ta: {
+                    title: tamilTitle,
+                    description: tamilDescription
+                }
             }
         };
 
-        // Category
+        // ==========================================
+        // CATEGORY
+        // ==========================================
+
         if (req.body.categoryId) {
-            updateFields.categoryId = req.body.categoryId;
+            updateFields.categoryId =
+                req.body.categoryId;
         }
 
-        // Status
+        // ==========================================
+        // STATUS
+        // ==========================================
+
         if (req.body.status) {
-            updateFields.status = req.body.status;
+            updateFields.status =
+                req.body.status;
         }
 
-        // Mom type
-        if (
-            req.body.momType &&
-            req.body.momType === 'pregMom'
-        ) {
-            updateFields.momType = req.body.momType;
-            updateFields.month = 0;
+        // ==========================================
+        // MOM TYPE
+        // ==========================================
 
-            if (req.body.week) {
-                updateFields.week = req.body.week;
+        if (req.body.momType) {
+
+            updateFields.momType =
+                req.body.momType;
+
+            if (req.body.momType === 'pregMom') {
+
+                updateFields.month = 0;
+
+                if (req.body.week) {
+                    updateFields.week =
+                        req.body.week;
+                }
+
+            }
+
+            if (req.body.momType === 'newMom') {
+
+                updateFields.week = 0;
+
+                if (req.body.month) {
+                    updateFields.month =
+                        req.body.month;
+                }
             }
         }
 
-        if (
-            req.body.momType &&
-            req.body.momType === 'newMom'
-        ) {
-            updateFields.momType = req.body.momType;
-            updateFields.week = 0;
+        // ==========================================
+        // DURATION
+        // ==========================================
 
-            if (req.body.month) {
-                updateFields.month = req.body.month;
-            }
-        }
-
-        // Duration
         if (req.body.duration) {
-            updateFields.duration = req.body.duration;
+            updateFields.duration =
+                req.body.duration;
         }
 
         // ==========================================
         // FILE
         // ==========================================
 
-        const fileArray = req.files?.file || [];
-        const bannerArray = req.files?.banner || [];
+        const fileArray =
+            req.files?.file || [];
 
         if (
-            fileChanged &&
+            (fileChanged === true ||
+             fileChanged === 'true') &&
             public_id &&
             fileArray[0]
         ) {
-            await deleteFromCloudinary(public_id);
 
-            const result = await uploadToCloudinary(
-                fileArray[0],
-                'articles'
+            await deleteFromCloudinary(
+                public_id
             );
 
-            updateFields.file = result.secure_url;
-            updateFields.public_id = result.public_id;
+            const result =
+                await uploadToCloudinary(
+                    fileArray[0],
+                    'articles'
+                );
+
+            updateFields.file =
+                result.secure_url;
+
+            updateFields.public_id =
+                result.public_id;
         }
 
         // ==========================================
         // BANNER
         // ==========================================
 
+        const bannerArray =
+            req.files?.banner || [];
+
         if (
-            bannerChanged &&
+            (bannerChanged === true ||
+             bannerChanged === 'true') &&
             banner_public_id &&
             bannerArray[0]
         ) {
-            await deleteFromCloudinary(banner_public_id);
 
-            const result = await uploadToCloudinary(
-                bannerArray[0],
-                'articles'
+            await deleteFromCloudinary(
+                banner_public_id
             );
 
-            updateFields.banner = result.secure_url;
-            updateFields.banner_public_id = result.public_id;
+            const result =
+                await uploadToCloudinary(
+                    bannerArray[0],
+                    'articles'
+                );
+
+            updateFields.banner =
+                result.secure_url;
+
+            updateFields.banner_public_id =
+                result.public_id;
         }
 
-        console.log('FINAL ARTICLE UPDATE:', {
-            id,
-            tamilTitle,
-            tamilDescription
-        });
+        // ==========================================
+        // FINAL DATABASE UPDATE
+        // ==========================================
+
+        console.log(
+            'DATABASE UPDATE:',
+            JSON.stringify(
+                updateFields,
+                null,
+                2
+            )
+        );
 
         const updatedArticle =
             await Article.findOneAndUpdate(
                 { id: id },
-                { $set: updateFields },
-                { new: true }
+                {
+                    $set: updateFields
+                },
+                {
+                    new: true
+                }
             );
 
         if (!updatedArticle) {
@@ -785,6 +895,23 @@ exports.update = async (req, res, next) => {
             );
         }
 
+        console.log(
+            '========================================'
+        );
+
+        console.log(
+            'UPDATED DATABASE TRANSLATIONS:',
+            JSON.stringify(
+                updatedArticle.translations,
+                null,
+                2
+            )
+        );
+
+        console.log(
+            '========================================'
+        );
+
         return res.apiResponse(
             true,
             'Article updated successfully',
@@ -793,7 +920,11 @@ exports.update = async (req, res, next) => {
         );
 
     } catch (error) {
-        console.error('Update Error:', error);
+
+        console.error(
+            'ARTICLE UPDATE ERROR:',
+            error
+        );
 
         return res.apiResponse(
             false,
