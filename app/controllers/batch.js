@@ -242,22 +242,109 @@ exports.list = async (req, res, next) => {
         return res.apiResponse(false, 'Get list error', {}, 500);
     }
 }
-
 exports.view = async (req, res, next) => {
     try {
-        var requests = req.bodyParams;
-        if (!requests.id) {
-            return res.apiResponse(false, 'Id is missing', {}, 400);
+
+        const requests = req.bodyParams;
+
+        if (!requests?.id) {
+            return res.apiResponse(
+                false,
+                'Id is missing',
+                {},
+                400
+            );
         }
-        const batch = await Batch.findOne({ id: requests.id })
+
+        const batch = await Batch.findOne({
+            id: requests.id
+        }).lean();
+
         if (!batch) {
-            return res.apiResponse(false, 'Batch not found', {}, 404);
+            return res.apiResponse(
+                false,
+                'Batch not found',
+                {},
+                404
+            );
         }
-        return res.apiResponse(true, 'Success', batch, 200);
+
+        // English title
+        const englishTitle =
+            batch?.title ||
+            batch?.translations?.en?.title ||
+            '';
+
+        // Tamil title
+        const tamilTitle =
+            batch?.translations?.ta?.title ||
+            '';
+
+        // Send both English and Tamil to admin
+        const responseData = {
+            ...batch,
+
+            title: englishTitle,
+
+            titleTa: tamilTitle,
+
+            translations: {
+                en: {
+                    title: englishTitle
+                },
+                ta: {
+                    title: tamilTitle
+                }
+            },
+
+            // Do not let global localization modify admin response
+            __skipLocalization: true
+        };
+
+        console.log('========== BADGE VIEW ==========');
+        console.log('English Title:', englishTitle);
+        console.log('Tamil Title:', tamilTitle);
+        console.log(
+            'Translations:',
+            JSON.stringify(responseData.translations, null, 2)
+        );
+        console.log('=================================');
+
+        return res.apiResponse(
+            true,
+            'Success',
+            responseData,
+            200
+        );
+
     } catch (error) {
-        return res.apiResponse(false, 'get Batch error', {}, 500)
+
+        console.error('Badge View Error:', error);
+
+        return res.apiResponse(
+            false,
+            'Get Badge error',
+            {},
+            500
+        );
     }
-}
+};
+
+// exports.view = async (req, res, next) => {
+//     try {
+//         var requests = req.bodyParams;
+//         if (!requests.id) {
+//             return res.apiResponse(false, 'Id is missing', {}, 400);
+//         }
+//         const batch = await Batch.findOne({ id: requests.id })
+//         if (!batch) {
+//             return res.apiResponse(false, 'Batch not found', {}, 404);
+//         }
+//         return res.apiResponse(true, 'Success', batch, 200);
+//     } catch (error) {
+//         return res.apiResponse(false, 'get Batch error', {}, 500)
+//     }
+// }
 
 exports.update = async (req, res, next) => {
     try {

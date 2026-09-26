@@ -214,73 +214,14 @@ exports.register = async (req, res, next) => {
     }
 };
 
-exports.login = async (req, res, next) => {
-    try {
-        var requests = req.bodyParams;
-
-        if (!requests.userName || !requests.password) {
-            return res.apiResponse(false, 'UserName or password is missing', {}, 400)
-        }
-
-        if (requests.userName != '') {
-            var loginUser = await Auth.findOne({
-                $or: [
-                    { "email": requests.userName },
-                    { "userName": requests.userName }
-                ]
-            });
-
-            if (!loginUser) {
-                return res.apiResponse(false, 'User not found', {}, 404)
-            }
-        }
-
-        if (loginUser.password !== requests.password) {
-            return res.apiResponse(false, 'Password is wrong', loginUser, 400)
-        }
-
-        // if (loginUser.emailVerified) {
-        //     const token = generateToken({ userid: loginUser.id })
-        //     loginUser.token = token;
-        //     await loginUser.save();
-
-        //     return res.apiResponse(true, 'Logged in success', loginUser, 200)
-        // }
-        if (loginUser.emailVerified) {
-            const token = generateToken({ userid: loginUser.id });
-
-            loginUser.token = token;
-            await loginUser.save();
-
-            const userData = loginUser.toObject();
-
-            userData._id = loginUser._id.toString();
-
-            delete userData.password;
-            delete userData.otp;
-
-            return res.apiResponse(true, 'Logged in success', userData, 200);
-        }      
-        else {
-            const otp = await sendOtpMail(requests.email)
-            loginUser.otp = otp;
-            await loginUser.save();
-
-            return res.apiResponse(false, 'Please Verify Your Email', { otp: otp }, 404)
-        }
-    } catch (error) {
-        return res.apiResponse(false, "Login Error", { error }, 500)
-    }
-}
-
 // exports.login = async (req, res, next) => {
 //     try {
 //         var requests = req.bodyParams;
-//         //to check all params
+
 //         if (!requests.userName || !requests.password) {
 //             return res.apiResponse(false, 'UserName or password is missing', {}, 400)
 //         }
-//         //to check register user
+
 //         if (requests.userName != '') {
 //             var loginUser = await Auth.findOne({
 //                 $or: [
@@ -288,24 +229,43 @@ exports.login = async (req, res, next) => {
 //                     { "userName": requests.userName }
 //                 ]
 //             });
+
 //             if (!loginUser) {
 //                 return res.apiResponse(false, 'User not found', {}, 404)
 //             }
 //         }
-//         //to compare password
+
 //         if (loginUser.password !== requests.password) {
 //             return res.apiResponse(false, 'Password is wrong', loginUser, 400)
 //         }
+
+//         // if (loginUser.emailVerified) {
+//         //     const token = generateToken({ userid: loginUser.id })
+//         //     loginUser.token = token;
+//         //     await loginUser.save();
+
+//         //     return res.apiResponse(true, 'Logged in success', loginUser, 200)
+//         // }
 //         if (loginUser.emailVerified) {
-//             // jwt_authentication
-//             const token = generateToken({ userid: loginUser.id })
+//             const token = generateToken({ userid: loginUser.id });
+
 //             loginUser.token = token;
 //             await loginUser.save();
-//             return res.apiResponse(true, 'Logged in success', loginUser, 200)
-//         } else {
+
+//             const userData = loginUser.toObject();
+
+//             userData._id = loginUser._id.toString();
+
+//             delete userData.password;
+//             delete userData.otp;
+
+//             return res.apiResponse(true, 'Logged in success', userData, 200);
+//         }      
+//         else {
 //             const otp = await sendOtpMail(requests.email)
 //             loginUser.otp = otp;
 //             await loginUser.save();
+
 //             return res.apiResponse(false, 'Please Verify Your Email', { otp: otp }, 404)
 //         }
 //     } catch (error) {
@@ -313,33 +273,73 @@ exports.login = async (req, res, next) => {
 //     }
 // }
 
+exports.login = async (req, res, next) => {
+    try {
+        var requests = req.bodyParams;
+        //to check all params
+        if (!requests.userName || !requests.password) {
+            return res.apiResponse(false, 'UserName or password is missing', {}, 400)
+        }
+        //to check register user
+        if (requests.userName != '') {
+            var loginUser = await Auth.findOne({
+                $or: [
+                    { "email": requests.userName },
+                    { "userName": requests.userName }
+                ]
+            });
+            if (!loginUser) {
+                return res.apiResponse(false, 'User not found', {}, 404)
+            }
+        }
+        //to compare password
+        if (loginUser.password !== requests.password) {
+            return res.apiResponse(false, 'Password is wrong', loginUser, 400)
+        }
+        if (loginUser.emailVerified) {
+            // jwt_authentication
+            const token = generateToken({ userid: loginUser.id })
+            loginUser.token = token;
+            await loginUser.save();
+            return res.apiResponse(true, 'Logged in success', loginUser, 200)
+        } else {
+            const otp = await sendOtpMail(requests.email)
+            loginUser.otp = otp;
+            await loginUser.save();
+            return res.apiResponse(false, 'Please Verify Your Email', { otp: otp }, 404)
+        }
+    } catch (error) {
+        return res.apiResponse(false, "Login Error", { error }, 500)
+    }
+}
 
 
-// exports.getMobileOtp = async (req, res, next) => {
-//     try {
-//         const { } = req.bodyParams;
-//         // if (!id) {
-//         //     return res.apiResponse(false, "Id is missing", {}, 400)
-//         // }
-//         const userId = req.userDetails.id;
-//         const user = await Auth.findOne({ id: userId })
-//         if (!user) {
-//             return res.apiResponse(false, "User Not Found", {}, 400)
-//         }
-//         if (user && !user.mobile) {
-//             return res.apiResponse(false, "User Mobile Missing", {}, 400)
-//         }
-//         const otp = Math.floor(100000 + Math.random() * 900000);
-//         user.otp = otp;
-//         await user.save();
-//         await sendMobileOtp(user.mobile, otp)
-//             .then(() => console.log(`OTP sent to ${user.mobile}`))
-//             .catch(err => console.error('Email send error:', err.message));
-//         return res.apiResponse(true, 'Mobile Otp is success', { user }, 200)
-//     } catch (error) {
-//         return res.apiResponse(false, "Mobile Otp Error", {}, 500)
-//     }
-// }
+
+exports.getMobileOtp = async (req, res, next) => {
+    try {
+        const { } = req.bodyParams;
+        // if (!id) {
+        //     return res.apiResponse(false, "Id is missing", {}, 400)
+        // }
+        const userId = req.userDetails.id;
+        const user = await Auth.findOne({ id: userId })
+        if (!user) {
+            return res.apiResponse(false, "User Not Found", {}, 400)
+        }
+        if (user && !user.mobile) {
+            return res.apiResponse(false, "User Mobile Missing", {}, 400)
+        }
+        const otp = Math.floor(100000 + Math.random() * 900000);
+        user.otp = otp;
+        await user.save();
+        await sendMobileOtp(user.mobile, otp)
+            .then(() => console.log(`OTP sent to ${user.mobile}`))
+            .catch(err => console.error('Email send error:', err.message));
+        return res.apiResponse(true, 'Mobile Otp is success', { user }, 200)
+    } catch (error) {
+        return res.apiResponse(false, "Mobile Otp Error", {}, 500)
+    }
+}
 
 exports.requestOtpForMobile = async (req, res, next) => {
     try {
@@ -1837,6 +1837,33 @@ cron.schedule('0 * * * *', async () => {
     }
 });
 
+exports.totalUsersCount = async (req, res, next) => {
+    try {
+        const { momType } = req.bodyParams || {};
+        const query = {
+            roleName: 'user',
+            momType: momType || 'pregMom'
+        };
+        const totalUsers = await Auth.countDocuments(query);
+        return res.apiResponse(
+            true,
+            'Total users count',
+            {
+                count: totalUsers
+            },
+            200
+        );
+    } catch (error) {
+        console.error('Total Users Count Error:', error);
+        return res.apiResponse(
+            false,
+            'Error getting total users count',
+            {},
+            500
+        );
+    }
+};
+
 exports.getInactiveUserCounts = async (req, res) => {
     try {
         const { momType, fromDate, toDate } = req.bodyParams;
@@ -1868,9 +1895,7 @@ exports.getInactiveUserCounts = async (req, res) => {
         if (fromDate && toDate) {
             const from = moment(fromDate, 'DD-MM-YYYY');
             const to = moment(toDate, 'DD-MM-YYYY').endOf('day');
-
             const filtered = parsedUsers.filter(u => u.loginAt.isBetween(from, to, undefined, '[]'));
-
             return res.apiResponse(true, 'Success', {
                 customRange: {
                     fromDate,
@@ -1894,7 +1919,6 @@ exports.getInactiveUserCounts = async (req, res) => {
 
         for (const user of parsedUsers) {
             const { id, loginAt } = user;
-
             if (loginAt.isBetween(now.clone().subtract(7, 'days'), todayStart, undefined, '[]')) {
                 result.last7Days.push(id);
             }

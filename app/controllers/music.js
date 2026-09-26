@@ -506,23 +506,224 @@ exports.list = async (req, res, next) => {
         return res.apiResponse(false, 'Get list error', {}, 500);
     }
 }
+
 exports.view = async (req, res, next) => {
     try {
-        var requests = req.bodyParams;
-        console.log('requests', requests)
+
+        const requests = req.bodyParams;
+
         if (!requests.id) {
-            return res.apiResponse(false, 'Id is missing', {}, 400);
+            return res.apiResponse(
+                false,
+                'Id is missing',
+                {},
+                400
+            );
         }
-        const music = await Music.findOne({ id: requests.id })
-        console.log('music', music)
+
+        const music = await Music.findOne({
+            id: requests.id
+        }).lean();
+
         if (!music) {
-            return res.apiResponse(false, 'music not found', {}, 404);
+            return res.apiResponse(
+                false,
+                'Music not found',
+                {},
+                404
+            );
         }
-        return res.apiResponse(true, 'Success', music, 200);
+
+        const englishName =
+            music?.translations?.en?.name ||
+            music?.name ||
+            '';
+
+        const tamilName =
+            music?.translations?.ta?.name ||
+            '';
+
+        music.name = englishName;
+        music.nameTa = tamilName;
+
+        music.translations = {
+            en: {
+                name: englishName
+            },
+            ta: {
+                name: tamilName
+            }
+        };
+
+        // Keep Tamil for every playlist also
+        music.playLists = (music.playLists || []).map((playList) => {
+
+            const playlistEnglishName =
+                playList?.translations?.en?.name ||
+                playList?.name ||
+                '';
+
+            const playlistTamilName =
+                playList?.translations?.ta?.name ||
+                '';
+
+            return {
+                ...playList,
+
+                name: playlistEnglishName,
+
+                nameTa: playlistTamilName,
+
+                translations: {
+                    en: {
+                        name: playlistEnglishName
+                    },
+                    ta: {
+                        name: playlistTamilName
+                    }
+                }
+            };
+        });
+
+        music.__skipLocalization = true;
+
+        console.log('========== MUSIC VIEW ==========');
+        console.log('English:', music.name);
+        console.log('Tamil:', music.nameTa);
+
+        return res.apiResponse(
+            true,
+            'Success',
+            music,
+            200
+        );
+
     } catch (error) {
-        return res.apiResponse(false, 'get music error', {}, 500)
+
+        console.error(
+            'Music View Error:',
+            error
+        );
+
+        return res.apiResponse(
+            false,
+            'get music error',
+            {
+                error: error.message
+            },
+            500
+        );
     }
-}
+};
+
+// exports.view = async (req, res, next) => {
+//     try {
+//         var requests = req.bodyParams;
+//         console.log('requests', requests)
+//         if (!requests.id) {
+//             return res.apiResponse(false, 'Id is missing', {}, 400);
+//         }
+//         const music = await Music.findOne({ id: requests.id })
+//         console.log('music', music)
+//         if (!music) {
+//             return res.apiResponse(false, 'music not found', {}, 404);
+//         }
+//         return res.apiResponse(true, 'Success', music, 200);
+//     } catch (error) {
+//         return res.apiResponse(false, 'get music error', {}, 500)
+//     }
+// }
+
+exports.viewPlayList = async (req, res, next) => {
+    try {
+
+        const { id, playListId } = req.bodyParams;
+
+        if (!id || !playListId) {
+            return res.apiResponse(
+                false,
+                'Id or playListId is missing',
+                {},
+                400
+            );
+        }
+
+        // IMPORTANT: lean() gives plain JS object
+        const music = await Music.findOne({ id }).lean();
+
+        if (!music) {
+            return res.apiResponse(
+                false,
+                'Music not found',
+                {},
+                404
+            );
+        }
+
+        const playList = music.playLists.find(
+            item => item.playListId === playListId
+        );
+
+        if (!playList) {
+            return res.apiResponse(
+                false,
+                'Play List not found',
+                {},
+                404
+            );
+        }
+
+        // English
+        const englishName =
+            playList?.translations?.en?.name ||
+            playList?.name ||
+            '';
+
+        // Tamil
+        const tamilName =
+            playList?.translations?.ta?.name ||
+            '';
+
+        // Send both separately to admin
+        playList.name = englishName;
+        playList.nameTa = tamilName;
+
+        // Keep translations also
+        playList.translations = {
+            en: {
+                name: englishName
+            },
+            ta: {
+                name: tamilName
+            }
+        };
+
+        // Prevent global localization from removing/changing raw admin values
+        playList.__skipLocalization = true;
+        return res.apiResponse(
+            true,
+            'Success',
+            playList,
+            200
+        );
+
+    } catch (error) {
+        console.error(
+            'Playlist View Error:',
+            error
+        );
+
+        return res.apiResponse(
+            false,
+            'get Music error',
+            {
+                error: error.message
+            },
+            500
+        );
+    }
+};
+
 exports.viewPlayList = async (req, res, next) => {
     try {
         var { id, playListId } = req.bodyParams;
@@ -542,6 +743,7 @@ exports.viewPlayList = async (req, res, next) => {
         return res.apiResponse(false, 'get Music error', { error }, 500)
     }
 }
+
 exports.update = async (req, res, next) => {
     try {
 

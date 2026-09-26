@@ -323,19 +323,43 @@ exports.list = async (req, res, next) => {
 
 exports.view = async (req, res, next) => {
     try {
+
         var requests = req.bodyParams;
         if (!requests.id) {
             return res.apiResponse(false, 'Id is missing', {}, 400);
         }
-        const plan = await Plan.findOne({ id: requests.id })
+        const plan = await Plan.findOne({ id: requests.id });
         if (!plan) {
             return res.apiResponse(false, 'plan not found', {}, 404);
         }
-        return res.apiResponse(true, 'Success', plan, 200);
+        const planData = plan.toObject();
+        // Admin edit page needs both English and Tamil
+        if (requests.admin === true) {
+            planData.__skipLocalization = true;
+        }
+        return res.apiResponse(true, 'Success', planData, 200);
+
     } catch (error) {
-        return res.apiResponse(false, 'get plan error', {}, 500)
+        console.log('get plan error:', error);
+        return res.apiResponse(false, 'get plan error', {}, 500);
     }
-}
+};
+
+// exports.view = async (req, res, next) => {
+//     try {
+//         var requests = req.bodyParams;
+//         if (!requests.id) {
+//             return res.apiResponse(false, 'Id is missing', {}, 400);
+//         }
+//         const plan = await Plan.findOne({ id: requests.id })
+//         if (!plan) {
+//             return res.apiResponse(false, 'plan not found', {}, 404);
+//         }
+//         return res.apiResponse(true, 'Success', plan, 200);
+//     } catch (error) {
+//         return res.apiResponse(false, 'get plan error', {}, 500)
+//     }
+// }
 
 exports.update = async (req, res, next) => {
     try {

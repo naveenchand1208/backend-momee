@@ -417,101 +417,624 @@ exports.list = async (req, res, next) => {
 exports.view = async (req, res, next) => {
     try {
         const requests = req.bodyParams;
+
         if (!requests.id) {
-            return res.apiResponse(false, 'Id is missing', {}, 400);
+            return res.apiResponse(
+                false,
+                'Id is missing',
+                {},
+                400
+            );
         }
-        const article = await Article.findOne({ id: requests.id });
+
+        const article = await Article.findOne({
+            id: requests.id
+        }).lean();
+
         if (!article) {
-            return res.apiResponse(false, 'Article not found', {}, 404);
+            return res.apiResponse(
+                false,
+                'Article not found',
+                {},
+                404
+            );
         }
+
         const userId = req.userDetails.id;
+
         const alreadyViewed = article.views.some(
-            (view) => view.userId.toString() === userId.toString()
+            (view) =>
+                view.userId.toString() === userId.toString()
         );
+
         if (!alreadyViewed) {
-            article.views.push({ userId, viewed: true });
-            article.viewsCount = article.views.length;
-            await article.save();
+            const articleDoc = await Article.findOne({
+                id: requests.id
+            });
+
+            articleDoc.views.push({
+                userId,
+                viewed: true
+            });
+
+            articleDoc.viewsCount =
+                articleDoc.views.length;
+
+            await articleDoc.save();
         }
+
+        // Don't send view users to admin
         article.views = [];
-        return res.apiResponse(true, 'Success', article, 200);
+
+        // ==========================================
+        // TAMIL VALUES
+        // ==========================================
+
+        const tamilTitle =
+            article.translations &&
+            article.translations.ta
+                ? article.translations.ta.title || ''
+                : '';
+
+        const tamilDescription =
+            article.translations &&
+            article.translations.ta
+                ? article.translations.ta.description || ''
+                : '';
+
+        // ==========================================
+        // ADMIN TAMIL VALUES
+        // ==========================================
+
+        article.titleTa = tamilTitle;
+
+        article.descriptionTa = tamilDescription;
+
+        // Keep translations also available
+        article.translations = {
+            en: {
+                title:
+                    article.translations?.en?.title ||
+                    article.title ||
+                    '',
+
+                description:
+                    article.translations?.en?.description ||
+                    article.description ||
+                    ''
+            },
+
+            ta: {
+                title: tamilTitle,
+                description: tamilDescription
+            }
+        };
+
+        // ==========================================
+        // STOP GLOBAL LOCALIZATION
+        // ==========================================
+
+        article.__skipLocalization = true;
+
+        // ==========================================
+        // DEBUG
+        // ==========================================
+
+        console.log(
+            'ARTICLE ID:',
+            article.id
+        );
+
+        console.log(
+            'ARTICLE EN TITLE:',
+            article.title
+        );
+
+        console.log(
+            'ARTICLE TA TITLE:',
+            tamilTitle
+        );
+
+        console.log(
+            'ARTICLE EN DESCRIPTION:',
+            article.description
+        );
+
+        console.log(
+            'ARTICLE TA DESCRIPTION:',
+            tamilDescription
+        );
+
+        console.log(
+            'ARTICLE TRANSLATIONS:',
+            JSON.stringify(
+                article.translations,
+                null,
+                2
+            )
+        );
+
+        return res.apiResponse(
+            true,
+            'Success',
+            article,
+            200
+        );
+
     } catch (error) {
-        console.error('Article View Error:', error);
-        return res.apiResponse(false, 'Get Article error', { message: error.message }, 500);
+        console.error(
+            'Article View Error:',
+            error
+        );
+
+        return res.apiResponse(
+            false,
+            'Get Article error',
+            {
+                message: error.message
+            },
+            500
+        );
     }
-}
+};
 
 exports.update = async (req, res, next) => {
     try {
-        if (req.body) {
-            const { id, public_id, banner_public_id, fileChanged, bannerChanged } = req.body;
-            if (id === undefined || id === null) {
-                return res.apiResponse(false, 'Id is missing', {}, 400);
-            }
-            const checkTitle = await Article.findOne({ title: req.body.title, momType: req.body.momType })
-            if (checkTitle && checkTitle.id !== id) {
-                return res.apiResponse(false, 'Title already exists', {}, 400);
-            }
-            const updateFields = {};
-            if (req.body.title) updateFields.title = req.body.title;
-            if (req.body.description) updateFields.description = req.body.description;
-                            updateFields.translations = {
-                    en: {
-                        title: req.body.title || '',
-                        description: req.body.description || ''
-                    },
-                    ta: {
-                        title: req.body.translations?.ta?.title || '',
-                        description: req.body.translations?.ta?.description || ''
-                    }
-                };
-            if (req.body.categoryId) updateFields.categoryId = req.body.categoryId;
-            if (req.body.status) updateFields.status = req.body.status;
-            if (req.body.momType && req.body.momType === 'pregMom') {
-                updateFields.momType = req.body.momType;
-                updateFields.month = 0;
-                if (!!req.body.week) updateFields.week = req.body.week;
-            }
-            if (req.body.momType && req.body.momType === 'newMom') {
-                updateFields.momType = req.body.momType;
-                updateFields.week = 0;
-                if (!!req.body.month) updateFields.month = req.body.month;
-            }
-            // if (!!req.body.week) updateFields.week = req.body.week;
-            // if (!!req.body.month) updateFields.month = req.body.month;
-            // if (req.body.momType) updateFields.momType = req.body.momType;
-            if (req.body.duration) updateFields.duration = req.body.duration;
-            const fileArray = req.files?.file || [];
-            const bannerArray = req.files?.banner || [];
-            if (fileChanged && public_id && fileArray[0]) {
-                await deleteFromCloudinary(public_id);
-                const result = await uploadToCloudinary(fileArray[0], 'articles');
-                updateFields.file = result.secure_url;
-                updateFields.public_id = result.public_id;
-            }
-            if (bannerChanged && banner_public_id && bannerArray[0]) {
-                await deleteFromCloudinary(banner_public_id);
-                const result = await uploadToCloudinary(bannerArray[0], 'articles');
-                updateFields.banner = result.secure_url;
-                updateFields.banner_public_id = result.public_id;
-            }
-            const updatedArticle = await Article.findOneAndUpdate(
-                { id: id },
-                { $set: updateFields },
-                { new: true }
+
+        console.log('========================================');
+        console.log('ARTICLE UPDATE START');
+        console.log('REQ BODY:', req.body);
+        console.log('REQ FILES:', req.files);
+        console.log('========================================');
+
+        if (!req.body) {
+            return res.apiResponse(
+                false,
+                'Payload is missing',
+                {},
+                400
             );
-            if (!updatedArticle) {
-                return res.apiResponse(false, 'Article not found', {}, 404);
-            }
-            return res.apiResponse(true, 'Article updated successfully', updatedArticle, 200);
-        } else {
-            return res.apiResponse(false, 'Payload is missing', {}, 400);
         }
+
+        const {
+            id,
+            public_id,
+            banner_public_id,
+            fileChanged,
+            bannerChanged
+        } = req.body;
+
+        if (!id) {
+            return res.apiResponse(
+                false,
+                'Id is missing',
+                {},
+                400
+            );
+        }
+
+        // ==========================================
+        // GET EXISTING ARTICLE
+        // ==========================================
+
+        const existingArticle = await Article.findOne({ id });
+
+        if (!existingArticle) {
+            return res.apiResponse(
+                false,
+                'Article not found',
+                {},
+                404
+            );
+        }
+
+        // ==========================================
+        // PARSE TRANSLATIONS
+        // ==========================================
+
+        let translations = {};
+
+        console.log(
+            'RAW TRANSLATIONS:',
+            req.body.translations
+        );
+
+        if (req.body.translations) {
+
+            try {
+
+                translations =
+                    typeof req.body.translations === 'string'
+                        ? JSON.parse(req.body.translations)
+                        : req.body.translations;
+
+            } catch (error) {
+
+                console.error(
+                    'TRANSLATIONS JSON ERROR:',
+                    error
+                );
+
+                return res.apiResponse(
+                    false,
+                    'Invalid translations data',
+                    {},
+                    400
+                );
+            }
+        }
+
+        console.log(
+            'PARSED TRANSLATIONS:',
+            JSON.stringify(
+                translations,
+                null,
+                2
+            )
+        );
+
+        console.log(
+            'TAMIL TITLE RECEIVED:',
+            translations?.ta?.title
+        );
+
+        console.log(
+            'TAMIL DESCRIPTION RECEIVED:',
+            translations?.ta?.description
+        );
+
+        // ==========================================
+        // ENGLISH
+        // ==========================================
+
+        const englishTitle =
+            req.body.title ||
+            existingArticle?.translations?.en?.title ||
+            existingArticle?.title ||
+            '';
+
+        const englishDescription =
+            req.body.description ||
+            existingArticle?.translations?.en?.description ||
+            existingArticle?.description ||
+            '';
+
+        // ==========================================
+        // TAMIL
+        // ==========================================
+
+        const tamilTitle =
+            translations?.ta?.title !== undefined
+                ? translations.ta.title
+                : existingArticle?.translations?.ta?.title || '';
+
+        const tamilDescription =
+            translations?.ta?.description !== undefined
+                ? translations.ta.description
+                : existingArticle?.translations?.ta?.description || '';
+
+        console.log('========================================');
+        console.log('FINAL ENGLISH TITLE:', englishTitle);
+        console.log('FINAL TAMIL TITLE:', tamilTitle);
+        console.log('FINAL TAMIL DESCRIPTION:', tamilDescription);
+        console.log('========================================');
+
+        // ==========================================
+        // UPDATE FIELDS
+        // ==========================================
+
+        const updateFields = {
+
+            title: englishTitle,
+
+            description: englishDescription,
+
+            translations: {
+                en: {
+                    title: englishTitle,
+                    description: englishDescription
+                },
+
+                ta: {
+                    title: tamilTitle,
+                    description: tamilDescription
+                }
+            }
+        };
+
+        // ==========================================
+        // CATEGORY
+        // ==========================================
+
+        if (req.body.categoryId) {
+            updateFields.categoryId =
+                req.body.categoryId;
+        }
+
+        // ==========================================
+        // STATUS
+        // ==========================================
+
+        if (req.body.status) {
+            updateFields.status =
+                req.body.status;
+        }
+
+        // ==========================================
+        // MOM TYPE
+        // ==========================================
+
+        if (req.body.momType) {
+
+            updateFields.momType =
+                req.body.momType;
+
+            if (req.body.momType === 'pregMom') {
+
+                updateFields.month = 0;
+
+                if (req.body.week) {
+                    updateFields.week =
+                        req.body.week;
+                }
+
+            }
+
+            if (req.body.momType === 'newMom') {
+
+                updateFields.week = 0;
+
+                if (req.body.month) {
+                    updateFields.month =
+                        req.body.month;
+                }
+            }
+        }
+
+        // ==========================================
+        // DURATION
+        // ==========================================
+
+        if (req.body.duration) {
+            updateFields.duration =
+                req.body.duration;
+        }
+
+        // ==========================================
+        // FILE
+        // ==========================================
+
+        const fileArray =
+            req.files?.file || [];
+
+        if (
+            (fileChanged === true ||
+             fileChanged === 'true') &&
+            public_id &&
+            fileArray[0]
+        ) {
+
+            await deleteFromCloudinary(
+                public_id
+            );
+
+            const result =
+                await uploadToCloudinary(
+                    fileArray[0],
+                    'articles'
+                );
+
+            updateFields.file =
+                result.secure_url;
+
+            updateFields.public_id =
+                result.public_id;
+        }
+
+        // ==========================================
+        // BANNER
+        // ==========================================
+
+        const bannerArray =
+            req.files?.banner || [];
+
+        if (
+            (bannerChanged === true ||
+             bannerChanged === 'true') &&
+            banner_public_id &&
+            bannerArray[0]
+        ) {
+
+            await deleteFromCloudinary(
+                banner_public_id
+            );
+
+            const result =
+                await uploadToCloudinary(
+                    bannerArray[0],
+                    'articles'
+                );
+
+            updateFields.banner =
+                result.secure_url;
+
+            updateFields.banner_public_id =
+                result.public_id;
+        }
+
+        // ==========================================
+        // FINAL DATABASE UPDATE
+        // ==========================================
+
+        console.log(
+            'DATABASE UPDATE:',
+            JSON.stringify(
+                updateFields,
+                null,
+                2
+            )
+        );
+
+        const updatedArticle =
+            await Article.findOneAndUpdate(
+                { id: id },
+                {
+                    $set: updateFields
+                },
+                {
+                    new: true
+                }
+            );
+
+        if (!updatedArticle) {
+            return res.apiResponse(
+                false,
+                'Article not found',
+                {},
+                404
+            );
+        }
+
+        console.log(
+            '========================================'
+        );
+
+        console.log(
+            'UPDATED DATABASE TRANSLATIONS:',
+            JSON.stringify(
+                updatedArticle.translations,
+                null,
+                2
+            )
+        );
+
+        console.log(
+            '========================================'
+        );
+
+        return res.apiResponse(
+            true,
+            'Article updated successfully',
+            updatedArticle,
+            200
+        );
+
     } catch (error) {
-        console.error('Update Error:', error);
-        return res.apiResponse(false, 'Error updating Article', {}, 500);
+
+        console.error(
+            'ARTICLE UPDATE ERROR:',
+            error
+        );
+
+        return res.apiResponse(
+            false,
+            'Error updating Article',
+            {
+                message: error.message
+            },
+            500
+        );
     }
 };
+
+// exports.view = async (req, res, next) => {
+//     try {
+//         const requests = req.bodyParams;
+//         if (!requests.id) {
+//             return res.apiResponse(false, 'Id is missing', {}, 400);
+//         }
+//         const article = await Article.findOne({ id: requests.id });
+//         if (!article) {
+//             return res.apiResponse(false, 'Article not found', {}, 404);
+//         }
+//         const userId = req.userDetails.id;
+//         const alreadyViewed = article.views.some(
+//             (view) => view.userId.toString() === userId.toString()
+//         );
+//         if (!alreadyViewed) {
+//             article.views.push({ userId, viewed: true });
+//             article.viewsCount = article.views.length;
+//             await article.save();
+//         }
+//         article.views = [];
+//         return res.apiResponse(true, 'Success', article, 200);
+//     } catch (error) {
+//         console.error('Article View Error:', error);
+//         return res.apiResponse(false, 'Get Article error', { message: error.message }, 500);
+//     }
+// }
+
+// exports.update = async (req, res, next) => {
+//     try {
+//         if (req.body) {
+//             const { id, public_id, banner_public_id, fileChanged, bannerChanged } = req.body;
+//             if (id === undefined || id === null) {
+//                 return res.apiResponse(false, 'Id is missing', {}, 400);
+//             }
+//             const checkTitle = await Article.findOne({ title: req.body.title, momType: req.body.momType })
+//             if (checkTitle && checkTitle.id !== id) {
+//                 return res.apiResponse(false, 'Title already exists', {}, 400);
+//             }
+//             const updateFields = {};
+//             if (req.body.title) updateFields.title = req.body.title;
+//             if (req.body.description) updateFields.description = req.body.description;
+//                             updateFields.translations = {
+//                     en: {
+//                         title: req.body.title || '',
+//                         description: req.body.description || ''
+//                     },
+//                     ta: {
+//                         title: req.body.translations?.ta?.title || '',
+//                         description: req.body.translations?.ta?.description || ''
+//                     }
+//                 };
+//             if (req.body.categoryId) updateFields.categoryId = req.body.categoryId;
+//             if (req.body.status) updateFields.status = req.body.status;
+//             if (req.body.momType && req.body.momType === 'pregMom') {
+//                 updateFields.momType = req.body.momType;
+//                 updateFields.month = 0;
+//                 if (!!req.body.week) updateFields.week = req.body.week;
+//             }
+//             if (req.body.momType && req.body.momType === 'newMom') {
+//                 updateFields.momType = req.body.momType;
+//                 updateFields.week = 0;
+//                 if (!!req.body.month) updateFields.month = req.body.month;
+//             }
+//             // if (!!req.body.week) updateFields.week = req.body.week;
+//             // if (!!req.body.month) updateFields.month = req.body.month;
+//             // if (req.body.momType) updateFields.momType = req.body.momType;
+//             if (req.body.duration) updateFields.duration = req.body.duration;
+//             const fileArray = req.files?.file || [];
+//             const bannerArray = req.files?.banner || [];
+//             if (fileChanged && public_id && fileArray[0]) {
+//                 await deleteFromCloudinary(public_id);
+//                 const result = await uploadToCloudinary(fileArray[0], 'articles');
+//                 updateFields.file = result.secure_url;
+//                 updateFields.public_id = result.public_id;
+//             }
+//             if (bannerChanged && banner_public_id && bannerArray[0]) {
+//                 await deleteFromCloudinary(banner_public_id);
+//                 const result = await uploadToCloudinary(bannerArray[0], 'articles');
+//                 updateFields.banner = result.secure_url;
+//                 updateFields.banner_public_id = result.public_id;
+//             }
+//             const updatedArticle = await Article.findOneAndUpdate(
+//                 { id: id },
+//                 { $set: updateFields },
+//                 { new: true }
+//             );
+//             if (!updatedArticle) {
+//                 return res.apiResponse(false, 'Article not found', {}, 404);
+//             }
+//             return res.apiResponse(true, 'Article updated successfully', updatedArticle, 200);
+//         } else {
+//             return res.apiResponse(false, 'Payload is missing', {}, 400);
+//         }
+//     } catch (error) {
+//         console.error('Update Error:', error);
+//         return res.apiResponse(false, 'Error updating Article', {}, 500);
+//     }
+// };
 
 exports.delete = async (req, res, next) => {
     try {

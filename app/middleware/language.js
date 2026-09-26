@@ -9,7 +9,7 @@ module.exports = (req, res, next) => {
   // "ta-IN"
   // "en-US"
 
-  language = language.toLowerCase().split(',')[0].split('-')[0];
+  language = language.toLowerCase().split(',')[0].split('-')[0];  
 
   if (!SUPPORTED_LANGUAGES.includes(language)) {
     language = 'en';

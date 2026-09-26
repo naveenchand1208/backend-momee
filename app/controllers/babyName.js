@@ -44,11 +44,26 @@ exports.add = async (req, res, next) => {
 
         console.log("FINAL TRANSLATIONS:", translations);
 
+        // const newBabyName = new BabyName({
+        //     id: uniqueId,
+        //     name: name,
+        //     type: type,
+        //     translations: translations,
+        //     status: 'Active'
+        // });
         const newBabyName = new BabyName({
             id: uniqueId,
-            name: name,
+            name: name,            
+            nameTa: nameTa,
             type: type,
-            translations: translations,
+            translations: {
+                en: {
+                    name: name
+                },
+                ta: {
+                    name: nameTa
+                }
+            },
             status: 'Active'
         });
 
@@ -170,138 +185,336 @@ exports.list = async (req, res, next) => {
         return res.apiResponse(false, 'Get list error', {}, 500);
     }
 }
+
 exports.view = async (req, res, next) => {
     try {
-        var requests = req.bodyParams;
-        if (!requests.id) {
-            return res.apiResponse(false, 'Id is missing', {}, 400);
-        }
-        const names = await BabyName.findOne({ id: requests.id })
-        if (!names) {
-            return res.apiResponse(false, 'BabyName not found', {}, 404);
-        }
-        return res.apiResponse(true, 'Success', names, 200);
-    } catch (error) {
-        return res.apiResponse(false, 'get BabyName error', {}, 500)
-    }
-}
-exports.update = async (req, res, next) => {
-    try {
 
-        console.log("========== BABY NAME UPDATE ==========");
-        console.log("BODY PARAMS:", req.bodyParams);
+        const requests = req.bodyParams;
 
-        const {
-            id,
-            name,
-            nameTa,
-            type
-        } = req.bodyParams;
-
-        console.log("ID:", id);
-        console.log("English Name:", name);
-        console.log("Tamil Name:", nameTa);
-        console.log("Type:", type);
-
-        if (!id) {
+        if (!requests?.id) {
             return res.apiResponse(
                 false,
-                'Id is missing',
+                'ID is required',
                 {},
                 400
             );
         }
 
-        if (!name || !nameTa || !type) {
+        const babyName = await BabyName.findOne({
+            id: requests.id
+        }).lean();
+
+        if (!babyName) {
             return res.apiResponse(
                 false,
-                'Params is missing',
-                {},
-                400
-            );
-        }
-
-        const checkTitle = await BabyName.findOne({
-            name,
-            type
-        });
-
-        if (
-            checkTitle &&
-            checkTitle.id !== id
-        ) {
-            return res.apiResponse(
-                false,
-                'Name already exists',
-                {},
-                400
-            );
-        }
-
-        const updateFields = {
-            name: name,
-
-            type: type,
-
-            translations: {
-                en: {
-                    name: name
-                },
-
-                ta: {
-                    name: nameTa
-                }
-            }
-        };
-
-        console.log(
-            "UPDATE FIELDS:",
-            updateFields
-        );
-
-        const updatedBabyName =
-            await BabyName.findOneAndUpdate(
-                { id: id },
-                { $set: updateFields },
-                { new: true }
-            );
-
-        if (!updatedBabyName) {
-            return res.apiResponse(
-                false,
-                'Baby Name not found',
+                'Baby name not found',
                 {},
                 404
             );
         }
 
+        // ==========================================
+        // ENGLISH
+        // ==========================================
+
+        const englishName =
+            babyName?.translations?.en?.name ||
+            babyName?.name ||
+            '';
+
+        // ==========================================
+        // TAMIL
+        // Check translations FIRST
+        // Then old nameTa field
+        // ==========================================
+
+        const tamilName =
+            babyName?.translations?.ta?.name ||
+            babyName?.nameTa ||
+            '';
+
+        console.log('========== BABY NAME VIEW ==========');
+        console.log('ID:', babyName.id);
+        console.log('English:', englishName);
+        console.log('Old nameTa:', babyName.nameTa);
         console.log(
-            "UPDATED BABY NAME:",
-            updatedBabyName
+            'Translation Tamil:',
+            babyName?.translations?.ta?.name
+        );
+        console.log('FINAL TAMIL:', tamilName);
+
+        const responseData = {
+            id: babyName.id,
+
+            name: englishName,
+
+            nameTa: tamilName,
+
+            type: babyName.type,
+
+            status: babyName.status,
+
+            translations: {
+                en: {
+                    name: englishName
+                },
+                ta: {
+                    name: tamilName
+                }
+            },
+
+            __skipLocalization: true
+        };
+
+        console.log(
+            'FINAL RESPONSE:',
+            JSON.stringify(responseData, null, 2)
         );
 
         return res.apiResponse(
             true,
-            'Baby Name updated successfully',
-            updatedBabyName,
+            'Success',
+            responseData,
             200
         );
 
     } catch (error) {
 
         console.error(
-            'Baby Name Update Error:',
+            'Baby Name View Error:',
             error
         );
 
         return res.apiResponse(
             false,
-            'Error updating Baby Name',
+            'Baby Name View Error',
             {},
             500
         );
     }
 };
+
+// exports.view = async (req, res, next) => {
+//     try {
+//         const requests = req.bodyParams;
+
+//         if (!requests?.id) {
+//             return res.apiResponse(
+//                 false,
+//                 'ID is required',
+//                 {},
+//                 400
+//             );
+//         }
+
+//         const babyName = await BabyName.findOne({
+//             id: requests.id
+//         }).lean();
+
+//         if (!babyName) {
+//             return res.apiResponse(
+//                 false,
+//                 'Baby name not found',
+//                 {},
+//                 404
+//             );
+//         }
+
+//         const englishName =
+//             babyName?.name ||
+//             babyName?.translations?.en?.name ||
+//             '';
+
+//         const tamilName =
+//             babyName?.nameTa ||
+//             babyName?.translations?.ta?.name ||
+//             '';
+
+//         const responseData = {
+//             id: babyName.id,
+
+//             name: englishName,
+
+//             // DIRECT TAMIL VALUE
+//             nameTa: tamilName,
+
+//             type: babyName.type,
+
+//             status: babyName.status,
+
+//             translations: {
+//                 en: {
+//                     name: englishName
+//                 },
+//                 ta: {
+//                     name: tamilName
+//                 }
+//             },
+
+//             __skipLocalization: true
+//         };
+
+//         console.log('========== BABY NAME VIEW ==========');
+//         console.log('ID:', babyName.id);
+//         console.log('ENGLISH:', englishName);
+//         console.log('TAMIL:', tamilName);
+//         console.log(
+//             'FINAL RESPONSE:',
+//             JSON.stringify(responseData, null, 2)
+//         );
+//         console.log('====================================');
+
+//         return res.apiResponse(
+//             true,
+//             'Success',
+//             responseData,
+//             200
+//         );
+
+//     } catch (error) {
+//         console.error('Baby Name View Error:', error);
+
+//         return res.apiResponse(
+//             false,
+//             'Baby Name View Error',
+//             {},
+//             500
+//         );
+//     }
+// };
+
+// exports.view = async (req, res, next) => {
+//     try {
+//         var requests = req.bodyParams;
+//         if (!requests.id) {
+//             return res.apiResponse(false, 'Id is missing', {}, 400);
+//         }
+//         const names = await BabyName.findOne({ id: requests.id })
+//         if (!names) {
+//             return res.apiResponse(false, 'BabyName not found', {}, 404);
+//         }
+//         return res.apiResponse(true, 'Success', names, 200);
+//     } catch (error) {
+//         return res.apiResponse(false, 'get BabyName error', {}, 500)
+//     }
+// }
+
+
+// exports.update = async (req, res, next) => {
+//     try {
+
+//         console.log("========== BABY NAME UPDATE ==========");
+//         console.log("BODY PARAMS:", req.bodyParams);
+
+//         const {
+//             id,
+//             name,
+//             nameTa,
+//             type
+//         } = req.bodyParams;
+
+//         console.log("ID:", id);
+//         console.log("English Name:", name);
+//         console.log("Tamil Name:", nameTa);
+//         console.log("Type:", type);
+
+//         if (!id) {
+//             return res.apiResponse(
+//                 false,
+//                 'Id is missing',
+//                 {},
+//                 400
+//             );
+//         }
+
+//         if (!name || !nameTa || !type) {
+//             return res.apiResponse(
+//                 false,
+//                 'Params is missing',
+//                 {},
+//                 400
+//             );
+//         }
+
+//         const checkTitle = await BabyName.findOne({
+//             name,
+//             type
+//         });
+
+//         if (
+//             checkTitle &&
+//             checkTitle.id !== id
+//         ) {
+//             return res.apiResponse(
+//                 false,
+//                 'Name already exists',
+//                 {},
+//                 400
+//             );
+//         }
+
+//         const updateFields = {
+//             name: name,
+//             nameTa: nameTa,
+//             type: type,
+//             translations: {
+//                 en: {
+//                     name: name
+//                 },
+//                 ta: {
+//                     name: nameTa
+//                 }
+//             }
+//         };
+
+//         console.log(
+//             "UPDATE FIELDS:",
+//             updateFields
+//         );
+
+//         const updatedBabyName =
+//             await BabyName.findOneAndUpdate(
+//                 { id: id },
+//                 { $set: updateFields },
+//                 { new: true }
+//             );
+
+//         if (!updatedBabyName) {
+//             return res.apiResponse(
+//                 false,
+//                 'Baby Name not found',
+//                 {},
+//                 404
+//             );
+//         }
+
+//         console.log(
+//             "UPDATED BABY NAME:",
+//             updatedBabyName
+//         );
+
+//         return res.apiResponse(
+//             true,
+//             'Baby Name updated successfully',
+//             updatedBabyName,
+//             200
+//         );
+
+//     } catch (error) {
+
+//         console.error(
+//             'Baby Name Update Error:',
+//             error
+//         );
+
+//         return res.apiResponse(
+//             false,
+//             'Error updating Baby Name',
+//             {},
+//             500
+//         );
+//     }
+// };
 // exports.update = async (req, res, next) => {
 //     try {
 //         const { id } = req.bodyParams;
@@ -326,6 +539,489 @@ exports.update = async (req, res, next) => {
 //     }
 
 // };
+
+// exports.update = async (req, res, next) => {
+//     try {
+
+//         console.log("========== BABY NAME UPDATE ==========");
+//         console.log("BODY PARAMS:", req.bodyParams);
+
+//         const {
+//             id,
+//             name,
+//             nameTa,
+//             type,
+//             status
+//         } = req.bodyParams || {};
+
+//         console.log("ID:", id);
+//         console.log("English Name:", name);
+//         console.log("Tamil Name:", nameTa);
+//         console.log("Type:", type);
+//         console.log("Status:", status);
+
+//         // ID is always required
+//         if (!id) {
+//             return res.apiResponse(
+//                 false,
+//                 'Id is missing',
+//                 {},
+//                 400
+//             );
+//         }
+
+//         // Find existing baby name
+//         const existingBabyName =
+//             await BabyName.findOne({ id });
+
+//         if (!existingBabyName) {
+//             return res.apiResponse(
+//                 false,
+//                 'Baby Name not found',
+//                 {},
+//                 404
+//             );
+//         }
+
+//         // ==========================================
+//         // STATUS ONLY UPDATE
+//         // ==========================================
+
+//         if (
+//             status !== undefined &&
+//             status !== null &&
+//             status !== ''
+//         ) {
+
+//             const updatedBabyName =
+//                 await BabyName.findOneAndUpdate(
+//                     { id },
+//                     {
+//                         $set: {
+//                             status: status
+//                         }
+//                     },
+//                     {
+//                         new: true
+//                     }
+//                 );
+
+//             console.log(
+//                 "STATUS UPDATED:",
+//                 updatedBabyName.status
+//             );
+
+//             return res.apiResponse(
+//                 true,
+//                 'Baby Name status updated successfully',
+//                 updatedBabyName,
+//                 200
+//             );
+//         }
+
+//         // ==========================================
+//         // NORMAL EDIT UPDATE
+//         // ==========================================
+
+//         if (!name || !nameTa || !type) {
+//             return res.apiResponse(
+//                 false,
+//                 'Params is missing',
+//                 {},
+//                 400
+//             );
+//         }
+
+//         // Check duplicate name
+//         const checkTitle = await BabyName.findOne({
+//             name,
+//             type
+//         });
+
+//         if (
+//             checkTitle &&
+//             checkTitle.id !== id
+//         ) {
+//             return res.apiResponse(
+//                 false,
+//                 'Name already exists',
+//                 {},
+//                 400
+//             );
+//         }
+
+//         // ==========================================
+//         // UPDATE ALL BABY NAME DATA
+//         // ==========================================
+
+//         const updateFields = {
+//             name: name,
+//             nameTa: nameTa,
+//             type: type,
+
+//             translations: {
+//                 en: {
+//                     name: name
+//                 },
+//                 ta: {
+//                     name: nameTa
+//                 }
+//             }
+//         };
+
+//         const updatedBabyName =
+//             await BabyName.findOneAndUpdate(
+//                 { id: id },
+//                 {
+//                     $set: updateFields
+//                 },
+//                 {
+//                     new: true
+//                 }
+//             );
+
+//         if (!updatedBabyName) {
+//             return res.apiResponse(
+//                 false,
+//                 'Baby Name not found',
+//                 {},
+//                 404
+//             );
+//         }
+
+//         console.log(
+//             "UPDATED BABY NAME:",
+//             updatedBabyName
+//         );
+
+//         return res.apiResponse(
+//             true,
+//             'Baby Name updated successfully',
+//             updatedBabyName,
+//             200
+//         );
+
+//     } catch (error) {
+
+//         console.error(
+//             'Baby Name Update Error:',
+//             error
+//         );
+
+//         return res.apiResponse(
+//             false,
+//             'Error updating Baby Name',
+//             {
+//                 error: error.message
+//             },
+//             500
+//         );
+//     }
+// };
+
+exports.update = async (req, res, next) => {
+    try {
+
+        console.log("========== BABY NAME UPDATE ==========");
+        console.log("BODY PARAMS:", req.bodyParams);
+
+        const {
+            id,
+            name,
+            nameTa,
+            type,
+            status,
+            translations
+        } = req.bodyParams || {};
+
+        console.log('========== BABY NAME UPDATE INPUT ==========');
+        console.log('ID:', id);
+        console.log('NAME:', name);
+        console.log('NAME TA:', nameTa);
+        console.log('TYPE:', type);
+        console.log('STATUS:', status);
+        console.log(
+            'TRANSLATIONS:',
+            JSON.stringify(translations, null, 2)
+        );
+        console.log(
+            'TRANSLATIONS TA:',
+            translations?.ta?.name
+        );
+        console.log('============================================');
+
+        if (!id) {
+            return res.apiResponse(
+                false,
+                'Id is missing',
+                {},
+                400
+            );
+        }
+
+        // ==========================================
+        // FIND EXISTING
+        // ==========================================
+
+        const existingBabyName =
+            await BabyName.findOne({ id });
+
+        if (!existingBabyName) {
+            return res.apiResponse(
+                false,
+                'Baby Name not found',
+                {},
+                404
+            );
+        }
+
+        // ==========================================
+        // STATUS ONLY UPDATE
+        // ==========================================
+
+        // if (
+        //     status !== undefined &&
+        //     status !== null &&
+        //     status !== ''
+        // ) {
+
+        //     const updatedBabyName =
+        //         await BabyName.findOneAndUpdate(
+        //             { id },
+        //             {
+        //                 $set: {
+        //                     status: status
+        //                 }
+        //             },
+        //             {
+        //                 new: true
+        //             }
+        //         );
+
+        //     return res.apiResponse(
+        //         true,
+        //         'Baby Name status updated successfully',
+        //         updatedBabyName,
+        //         200
+        //     );
+        // }
+
+
+
+
+        const isStatusOnlyUpdate =
+    status !== undefined &&
+    status !== null &&
+    status !== '' &&
+    !name &&
+    !nameTa &&
+    !type;
+
+if (isStatusOnlyUpdate) {
+    const updatedBabyName = await BabyName.findOneAndUpdate(
+        { id },
+        { $set: { status } },
+        { new: true }
+    );
+
+    console.log('STATUS ONLY UPDATED:', updatedBabyName.status);
+
+    return res.apiResponse(
+        true,
+        'Baby Name status updated successfully',
+        updatedBabyName,
+        200
+    );
+}
+
+        // ==========================================
+        // GET TAMIL FROM BOTH SOURCES
+        // ==========================================
+
+        const tamilFromTranslations =
+            translations?.ta?.name || '';
+
+        const tamilFromNameTa =
+            nameTa || '';
+
+        const existingTamil =
+            existingBabyName?.translations?.ta?.name ||
+            existingBabyName?.nameTa ||
+            '';
+
+        const finalTamilName =
+            tamilFromTranslations ||
+            tamilFromNameTa ||
+            existingTamil;
+
+        // ==========================================
+        // VALIDATION
+        // ==========================================
+
+        const finalEnglishName =
+            name ||
+            existingBabyName?.translations?.en?.name ||
+            existingBabyName?.name ||
+            '';
+
+        const finalType =
+            type ||
+            existingBabyName?.type ||
+            '';
+
+        if (!finalEnglishName || !finalTamilName || !finalType) {
+
+            console.log(
+                "MISSING DATA:",
+                {
+                    finalEnglishName,
+                    finalTamilName,
+                    finalType
+                }
+            );
+
+            return res.apiResponse(
+                false,
+                'Params is missing',
+                {},
+                400
+            );
+        }
+
+        // ==========================================
+        // DUPLICATE CHECK
+        // ==========================================
+
+        const checkTitle =
+            await BabyName.findOne({
+                name: finalEnglishName,
+                type: finalType
+            });
+
+        if (
+            checkTitle &&
+            checkTitle.id !== id
+        ) {
+            return res.apiResponse(
+                false,
+                'Name already exists',
+                {},
+                400
+            );
+        }
+
+        // ==========================================
+        // UPDATE
+        // ==========================================
+
+        const updateFields = {
+
+            name: finalEnglishName,
+
+            nameTa: finalTamilName,
+
+            type: finalType,
+
+            translations: {
+
+                en: {
+                    name: finalEnglishName
+                },
+
+                ta: {
+                    name: finalTamilName
+                }
+            }
+        };
+
+        console.log(
+            "========== FINAL UPDATE =========="
+        );
+
+        console.log(
+            "English:",
+            finalEnglishName
+        );
+
+        console.log(
+            "Tamil:",
+            finalTamilName
+        );
+
+        console.log(
+            "Type:",
+            finalType
+        );
+
+        console.log(
+            "UPDATE FIELDS:",
+            JSON.stringify(
+                updateFields,
+                null,
+                2
+            )
+        );
+
+        // ==========================================
+        // DATABASE UPDATE
+        // ==========================================
+
+        const updatedBabyName =
+            await BabyName.findOneAndUpdate(
+                { id: id },
+                {
+                    $set: updateFields
+                },
+                {
+                    new: true
+                }
+            );
+
+        if (!updatedBabyName) {
+            return res.apiResponse(
+                false,
+                'Baby Name not found',
+                {},
+                404
+            );
+        }
+
+        console.log(
+            "========== UPDATED DATABASE =========="
+        );
+
+        console.log(
+            JSON.stringify(
+                updatedBabyName.toObject(),
+                null,
+                2
+            )
+        );
+
+        return res.apiResponse(
+            true,
+            'Baby Name updated successfully',
+            updatedBabyName,
+            200
+        );
+
+    } catch (error) {
+
+        console.error(
+            'Baby Name Update Error:',
+            error
+        );
+
+        return res.apiResponse(
+            false,
+            'Error updating Baby Name',
+            {
+                error: error.message
+            },
+            500
+        );
+    }
+};
 exports.delete = async (req, res, next) => {
     try {
         var requests = req.bodyParams;

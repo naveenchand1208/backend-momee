@@ -4,25 +4,12 @@ const { uploadToCloudinary, deleteFromCloudinary } = require('../helpers/cloudin
 
 exports.add = async (req, res, next) => {
     try {
-
         const title = req.body.title;
         const titleTa = req.body.titleTa;
         const status = req.body.status;
         const momType = req.body.momType;
 
         const { file, music } = req.files || {};
-
-
-        console.log('================================');
-        console.log('PODCAST ADD');
-        console.log('================================');
-
-        console.log('TITLE:', title);
-        console.log('TITLE TA:', titleTa);
-        console.log('MOM TYPE:', momType);
-        console.log('STATUS:', status);
-
-
         if (!title) {
             return res.apiResponse(
                 false,
@@ -31,8 +18,6 @@ exports.add = async (req, res, next) => {
                 400
             );
         }
-
-
         if (!titleTa) {
             return res.apiResponse(
                 false,
@@ -41,8 +26,6 @@ exports.add = async (req, res, next) => {
                 400
             );
         }
-
-
         if (!file || !file[0]) {
             return res.apiResponse(
                 false,
@@ -51,8 +34,6 @@ exports.add = async (req, res, next) => {
                 400
             );
         }
-
-
         if (!music || !music[0]) {
             return res.apiResponse(
                 false,
@@ -61,8 +42,6 @@ exports.add = async (req, res, next) => {
                 400
             );
         }
-
-
         if (!momType) {
             return res.apiResponse(
                 false,
@@ -71,8 +50,6 @@ exports.add = async (req, res, next) => {
                 400
             );
         }
-
-
         const allowedAudioTypes = [
             'audio/mpeg',
             'audio/mp3',
@@ -83,8 +60,6 @@ exports.add = async (req, res, next) => {
             'audio/aac',
             'audio/flac'
         ];
-
-
         if (
             !allowedAudioTypes.includes(
                 music[0].mimetype
@@ -99,78 +74,41 @@ exports.add = async (req, res, next) => {
             );
 
         }
-
-
         const fileUpload =
             await uploadToCloudinary(
                 file[0],
                 'podCasts'
             );
-
-
         const musicUpload =
             await uploadToCloudinary(
                 music[0],
                 'podCasts'
             );
-
-
         const uniqueId =
             `PodCasts-${moment().format('DDMMYYYYHHmmss')}`;
-
-
         const translations = {
-
             en: {
                 title: title
             },
-
             ta: {
                 title: titleTa
             }
-
         };
-
-
-        console.log(
-            'TRANSLATIONS BEFORE SAVE:',
-            translations
-        );
-
-
         const newCasts = new PodCasts({
-
             id: uniqueId,
-
             title: title,
-
             status: status || 'Active',
-
             momType: momType,
-
             file:
                 fileUpload.secure_url,
-
             public_id:
                 fileUpload.public_id,
-
             music:
                 musicUpload.secure_url,
-
             music_public_id:
                 musicUpload.public_id,
-
             translations: translations
-
         });
-
-
-        console.log(
-            'MODEL BEFORE SAVE:',
-            newCasts.toObject()
-        );
-
-
         await newCasts.save();
         await PodCasts.updateOne(
             { id: uniqueId },
@@ -184,51 +122,17 @@ exports.add = async (req, res, next) => {
                 strict: false
             }
         );
-
-
         const savedPodcast =
             await PodCasts.findOne({
                 id: uniqueId
-            }).lean();
-
-
-        console.log(
-            '================================'
-        );
-
-        console.log(
-            'DATABASE AFTER SAVE:'
-        );
-
-        console.log(
-            JSON.stringify(
-                savedPodcast,
-                null,
-                2
-            )
-        );
-
-        console.log(
-            'DATABASE TRANSLATIONS:',
-            savedPodcast.translations
-        );
-
-
+            }).lean();  
         return res.apiResponse(
             true,
             'PodCasts added Success',
             savedPodcast,
             200
         );
-
-
     } catch (error) {
-
-        console.error(
-            'Add PodCasts Error:',
-            error
-        );
-
         return res.apiResponse(
             false,
             'PodCasts Add error',
@@ -368,19 +272,101 @@ exports.list = async (req, res, next) => {
 
 exports.view = async (req, res, next) => {
     try {
-        var requests = req.bodyParams;
+
+        const requests = req.bodyParams;
+
         if (!requests.id) {
-            return res.apiResponse(false, 'Id is missing', {}, 400);
+            return res.apiResponse(
+                false,
+                'Id is missing',
+                {},
+                400
+            );
         }
-        const casts = await PodCasts.findOne({ id: requests.id })
-        if (!casts) {
-            return res.apiResponse(false, 'PodCasts not found', {}, 404);
+
+        const podcast = await PodCasts
+            .findOne({ id: requests.id })
+            .lean();
+
+        if (!podcast) {
+            return res.apiResponse(
+                false,
+                'PodCasts not found',
+                {},
+                404
+            );
         }
-        return res.apiResponse(true, 'Success', casts, 200);
+
+        // English title
+        const englishTitle =
+            podcast?.translations?.en?.title ||
+            podcast?.title ||
+            '';
+
+        // Tamil title
+        const tamilTitle =
+            podcast?.translations?.ta?.title ||
+            '';
+
+        // Keep normal English field
+        podcast.title = englishTitle;
+
+        // Send Tamil separately for admin input
+        podcast.titleTa = tamilTitle;
+
+        // Keep translations also
+        podcast.translations = {
+            en: {
+                title: englishTitle
+            },
+            ta: {
+                title: tamilTitle
+            }
+        };
+
+        // Prevent global localization from changing/removing
+        // the raw bilingual admin response
+        podcast.__skipLocalization = true;
+        return res.apiResponse(
+            true,
+            'Success',
+            podcast,
+            200
+        );
+
     } catch (error) {
-        return res.apiResponse(false, 'get PodCasts error', {}, 500)
+
+        console.error(
+            'Podcast View Error:',
+            error
+        );
+
+        return res.apiResponse(
+            false,
+            'get PodCasts error',
+            {
+                error: error.message
+            },
+            500
+        );
     }
-}
+};
+
+// exports.view = async (req, res, next) => {
+//     try {
+//         var requests = req.bodyParams;
+//         if (!requests.id) {
+//             return res.apiResponse(false, 'Id is missing', {}, 400);
+//         }
+//         const casts = await PodCasts.findOne({ id: requests.id })
+//         if (!casts) {
+//             return res.apiResponse(false, 'PodCasts not found', {}, 404);
+//         }
+//         return res.apiResponse(true, 'Success', casts, 200);
+//     } catch (error) {
+//         return res.apiResponse(false, 'get PodCasts error', {}, 500)
+//     }
+// }
 
 exports.update = async (req, res, next) => {
     try {

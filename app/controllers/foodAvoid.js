@@ -4,16 +4,15 @@ const { uploadToCloudinary, deleteFromCloudinary } = require('../helpers/cloudin
 
 exports.add = async (req, res, next) => {
     try {
-
         const {
             categoryId,
             title,
             titleTa,
             category,
-            categoryTa,
+          //  categoryTa,
             momType,
             foodType,
-            foodTypeTa,
+           // foodTypeTa,
             symptoms,
             week,
             month,
@@ -28,10 +27,10 @@ exports.add = async (req, res, next) => {
             !title ||
             !titleTa ||
             !category ||
-            !categoryTa ||
+           // !categoryTa ||
             !momType ||
             !foodType ||
-            !foodTypeTa ||
+           // !foodTypeTa ||
             !req.file ||
             !region ||
             !symptoms ||
@@ -117,8 +116,8 @@ exports.add = async (req, res, next) => {
                 ta: {
                     title: titleTa || '',
                     description: descriptionTa || '',
-                    category: categoryTa || '',
-                    foodType: foodTypeTa || ''
+                   // category: categoryTa || '',
+                   // foodType: foodTypeTa || ''
                 }
             }
 
@@ -370,12 +369,12 @@ exports.update = async (req, res, next) => {
 
             categoryId,
             category,
-            categoryTa,
+           // categoryTa,
 
             momType,
 
             foodType,
-            foodTypeTa,
+            //foodTypeTa,
 
             symptoms,
 
@@ -417,7 +416,8 @@ exports.update = async (req, res, next) => {
 
 
         // Category validation
-        if (!categoryId || !category || !categoryTa) {
+        //if (!categoryId || !category || !categoryTa) {
+            if (!categoryId || !category ) {
             return res.apiResponse(
                 false,
                 'Category and Tamil category are required',
@@ -428,7 +428,8 @@ exports.update = async (req, res, next) => {
 
 
         // Food type validation
-        if (!foodType || !foodTypeTa) {
+        //if (!foodType || !foodTypeTa) {
+            if (!foodType) {
             return res.apiResponse(
                 false,
                 'Food Type and Tamil Food Type are required',
@@ -472,8 +473,8 @@ exports.update = async (req, res, next) => {
             ta: {
                 title: titleTa || '',
                 description: descriptionTa || '',
-                category: categoryTa || '',
-                foodType: foodTypeTa || ''
+                //category: categoryTa || '',
+                //foodType: foodTypeTa || ''
             }
 
         };

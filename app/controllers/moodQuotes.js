@@ -7,34 +7,9 @@ exports.add = async (req, res, next) => {
     try {
 
         const requests = req.bodyParams;
-
         const quotes = requests.quotes;
         const quotesTa = requests.quotesTa;
         const date = requests.date;
-
-        console.log(
-            '========== MOOD QUOTES ADD =========='
-        );
-
-        console.log(
-            'English quotes:',
-            quotes
-        );
-
-        console.log(
-            'Tamil quotes:',
-            quotesTa
-        );
-
-        console.log(
-            'Date:',
-            date
-        );
-
-
-        // ==========================================
-        // DATE VALIDATION
-        // ==========================================
 
         if (!date) {
 
@@ -46,12 +21,6 @@ exports.add = async (req, res, next) => {
             );
 
         }
-
-
-        // ==========================================
-        // ENGLISH QUOTES
-        // ==========================================
-
         if (
             !quotes ||
             typeof quotes !== 'object'
@@ -66,11 +35,6 @@ exports.add = async (req, res, next) => {
 
         }
 
-
-        // ==========================================
-        // TAMIL QUOTES
-        // ==========================================
-
         if (
             !quotesTa ||
             typeof quotesTa !== 'object'
@@ -84,11 +48,6 @@ exports.add = async (req, res, next) => {
             );
 
         }
-
-
-        // ==========================================
-        // DATE
-        // ==========================================
 
         const Date = newFormatDate(
             date,
@@ -149,17 +108,32 @@ exports.add = async (req, res, next) => {
                 quotes: quotes,
 
                 // English + Tamil
+                // translations: {
+
+                //     en: {
+                //         quotes: quotes
+                //     },
+
+                //     ta: {
+                //         quotes: quotesTa
+                //     }
+
+                // }
                 translations: {
+                        en: {
+                            quotes: {
+                                ...quotes,
+                                default: quotes?.default || ''
+                            }
+                        },
 
-                    en: {
-                        quotes: quotes
-                    },
-
-                    ta: {
-                        quotes: quotesTa
+                        ta: {
+                            quotes: {
+                                ...quotesTa,
+                                default: quotesTa?.default || ''
+                            }
+                        }
                     }
-
-                }
 
             });
 
@@ -307,28 +281,145 @@ exports.list = async (req, res, next) => {
         return res.apiResponse(false, 'Get list error', {}, 500);
     }
 }
+
 exports.view = async (req, res, next) => {
     try {
-        var { date, id } = req.bodyParams;
+        const { date, id } = req.bodyParams;
+
         if (!date && !id) {
-            return res.apiResponse(false, 'Params is missing', {}, 400);
+            return res.apiResponse(
+                false,
+                'Params is missing',
+                {},
+                400
+            );
         }
-        date = formatDate(date)
-        // const quotes = await MoodQuotes.findOne({ date })
+
+        let formattedDate = null;
+
+        if (date) {
+            formattedDate = formatDate(date);
+        }
+
+        const conditions = [];
+
+        if (formattedDate) {
+            conditions.push({ date: formattedDate });
+        }
+
+        if (id) {
+            conditions.push({ id: id });
+        }
+
         const quotes = await MoodQuotes.findOne({
-            $or: [
-                { date: date },     // match by date
-                { id: id }         // match by id
-            ]
-        });
+            $or: conditions
+        }).lean();
+
         if (!quotes) {
-            return res.apiResponse(false, 'MoodQuotes not found', {}, 404);
+            return res.apiResponse(
+                false,
+                'MoodQuotes not found',
+                {},
+                404
+            );
         }
-        return res.apiResponse(true, 'Success', quotes, 200);
+
+        // ==========================================
+        // ENGLISH
+        // ==========================================
+
+        const englishQuotes =
+            quotes?.translations?.en?.quotes ||
+            quotes?.quotes ||
+            {};
+
+        // ==========================================
+        // TAMIL
+        // ==========================================
+
+        const tamilQuotes =
+            quotes?.translations?.ta?.quotes ||
+            {};
+
+        // ==========================================
+        // IMPORTANT
+        // Send Tamil separately for ADMIN
+        // ==========================================
+
+        quotes.quotes = englishQuotes;
+
+        quotes.quotesTa = {
+            ...tamilQuotes,
+
+            default:
+                tamilQuotes?.default || ''
+        };
+
+        // ==========================================
+        // KEEP TRANSLATIONS
+        // ==========================================
+
+        quotes.translations = {
+            en: {
+                quotes: englishQuotes
+            },
+
+            ta: {
+                quotes: quotes.quotesTa
+            }
+        };
+
+        // ==========================================
+        // VERY IMPORTANT
+        // Prevent app.js localization from removing
+        // the Tamil translation object
+        // ==========================================
+
+        quotes.__skipLocalization = true;
+      return res.apiResponse(
+            true,
+            'Success',
+            quotes,
+            200
+        );
+
     } catch (error) {
-        return res.apiResponse(false, 'get MoodQuotes error', {}, 500)
+
+        console.error(
+            'get MoodQuotes error:',
+            error
+        );
+
+        return res.apiResponse(
+            false,
+            'get MoodQuotes error',
+            {},
+            500
+        );
     }
-}
+};
+// exports.view = async (req, res, next) => {
+//     try {
+//         var { date, id } = req.bodyParams;
+//         if (!date && !id) {
+//             return res.apiResponse(false, 'Params is missing', {}, 400);
+//         }
+//         date = formatDate(date)
+//         // const quotes = await MoodQuotes.findOne({ date })
+//         const quotes = await MoodQuotes.findOne({
+//             $or: [
+//                 { date: date },     // match by date
+//                 { id: id }         // match by id
+//             ]
+//         });
+//         if (!quotes) {
+//             return res.apiResponse(false, 'MoodQuotes not found', {}, 404);
+//         }
+//         return res.apiResponse(true, 'Success', quotes, 200);
+//     } catch (error) {
+//         return res.apiResponse(false, 'get MoodQuotes error', {}, 500)
+//     }
+// }
 
 exports.update = async (req, res, next) => {
     try {
@@ -427,17 +518,32 @@ exports.update = async (req, res, next) => {
 
 
         // English + Tamil
+        // moodQuotes.translations = {
+
+        //     en: {
+        //         quotes: quotes
+        //     },
+
+        //     ta: {
+        //         quotes: quotesTa
+        //     }
+
+        // };
         moodQuotes.translations = {
+                en: {
+                    quotes: {
+                        ...quotes,
+                        default: quotes?.default || ''
+                    }
+                },
 
-            en: {
-                quotes: quotes
-            },
-
-            ta: {
-                quotes: quotesTa
-            }
-
-        };
+                ta: {
+                    quotes: {
+                        ...quotesTa,
+                        default: quotesTa?.default || ''
+                    }
+                }
+            };
 
 
         moodQuotes.markModified(
